@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hmac
 import io
 import json
 import mimetypes
+import secrets
 import shutil
 import subprocess
 import sys
@@ -19,6 +21,9 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
+STUDIO_VERSION = "2026.11.26-phase1"
+STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
+TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -130,6 +135,19 @@ DEFAULT_BOT_ROSTER: list[dict[str, Any]] = [
 ]
 
 
+CAPABILITIES_PROMPT = (
+    "WHAT YOU CAN DO RIGHT NOW: talk with Markus and draft text (posts, emails, plans, scripts, checklists). "
+    "When Markus asks for an image, the studio makes it for you. "
+    "WHAT YOU CANNOT DO YET: you cannot open, read, search, move, change or delete files on Markus's PC; "
+    "you cannot run programs, browse the web, send email or post anything. "
+    "If Markus asks for any of those, say plainly that you can't do it yet, and say what he can do instead "
+    "(for example: propose a tidy-up in the dashboard's Governance panel). "
+    "Never say or imply you did something you did not do, and never describe file contents you have not been shown. "
+    "Removing files: only Markus approves, in the dashboard; approved items go to quarantine and can be restored. "
+    "You never place trades. Never invent numbers, facts, dates or status; if you don't know, say so. "
+)
+
+
 def _norm_bot_key(name: str) -> str:
     nfkd = unicodedata.normalize("NFKD", name.strip().lower())
     ascii_only = "".join(c for c in nfkd if not unicodedata.combining(c))
@@ -179,6 +197,10 @@ def make_handler(studio_root: Path, footage_root: Path):
     settings = load_settings(studio_root)
     rules = load_rules(studio_root)
     subdirs = settings["footage_subdirs"]
+    session_token = secrets.token_urlsafe(32)
+    dash_port = int(settings.get("dashboard", {}).get("port", 8765))
+    allowed_hosts = {f"127.0.0.1:{dash_port}", f"localhost:{dash_port}"}
+    allowed_origins = {f"http://{h}" for h in allowed_hosts}
     assets_root = (studio_root / "assets").resolve()
     logs_root = (studio_root / "logs").resolve()
     index_html_path = (studio_root / "dashboard" / "index.html").resolve()
@@ -430,8 +452,27 @@ def make_handler(studio_root: Path, footage_root: Path):
         "last_monday_date": "",
     }
 
+    def _waiting_on_markus() -> list[dict[str, str]]:
+        waiting: list[dict[str, str]] = []
+        props = governance.list_proposals("pending_markus_approval")
+        if props:
+            waiting.append({"item": f"{len(props)} item(s) proposed for quarantine",
+                            "recommendation": "Review the checks in Governance, then approve or veto each one."})
+        try:
+            posts = [q for q in social.list_queue(studio_root) if q.get("status") == "pending_approval"]
+        except Exception:
+            posts = []
+        if posts:
+            waiting.append({"item": f"{len(posts)} social post draft(s) waiting",
+                            "recommendation": "Approve or reject them in the social queue."})
+        ok = OllamaClient(base_url=settings["ollama"]["base_url"], timeout_s=2).is_available()
+        if not ok:
+            waiting.append({"item": "Local AI (Ollama) is not answering",
+                            "recommendation": "Start it from the dashboard or run scripts\\fix_models.bat."})
+        return waiting
+
     def _trigger_7am_brief() -> dict[str, Any]:
-        brief = build_heimdall_daily_list(studio_root=studio_root, max_items=5)
+        brief = build_heimdall_daily_list(studio_root=studio_root, max_items=5, waiting=_waiting_on_markus())
         items_txt = []
         for i, it in enumerate(brief.get("items", [])):
             items_txt.append(f"{i+1}. **{it.get('item')}**\n   • *Recommendation:* {it.get('recommendation')}")
@@ -470,13 +511,16 @@ def make_handler(studio_root: Path, footage_root: Path):
                 if now_aest.weekday() == 0 and now_aest.hour == 9 and scheduler_state["last_monday_date"] != today_str:
                     scheduler_state["last_monday_date"] = today_str
                     try:
+                        ai_ok = OllamaClient(base_url=settings["ollama"]["base_url"], timeout_s=2).is_available()
+                        ai_line = (f"Local AI ({settings['ollama']['text_model']}) answered a check just now."
+                                   if ai_ok else "Local AI is NOT answering right now.")
                         rev_msg = (
                             f"🛡️ **[Heimdall · Monday 9:00am Executive Review · {today_str} AEST]**\n"
                             f"Weekly executive review:\n"
                             f"1. **Marketing & Video (Saga):** Threads of Empire vlogs, @DDGCompany X posts, and Shorts review queue.\n"
                             f"2. **Cattle Dog Coffee (Tyr):** Christmas B2B campaign active (strict Spam Act consent, Gmail locked to Drafts).\n"
                             f"3. **Doomsday Daycare (UE5):** Target 60 FPS mobile/PC performance budgets intact.\n"
-                            f"4. **Infrastructure Audit:** Local Ollama Qwen3:8B active at A$0; VRAM baton clashing guard enabled."
+                            f"4. **Infrastructure:** {ai_line}"
                         )
                         _post_proactive_bot_message("Heimdall", rev_msg, "proactive_scheduler")
                         _fire_windows_toast("Heimdall · Monday 9:00am Review", "Monday 9:00am Executive Review compiled.")
@@ -488,8 +532,28 @@ def make_handler(studio_root: Path, footage_root: Path):
     _start_proactive_scheduler()
 
     class StudioHandler(BaseHTTPRequestHandler):
+        token = session_token
+
         def log_message(self, format: str, *args: Any) -> None:
             return
+
+        def _host_ok(self) -> bool:
+            """Refuse DNS-rebinding: the Host header must be this studio's own address."""
+            return (self.headers.get("Host") or "").strip().lower() in allowed_hosts
+
+        def _post_ok(self) -> bool:
+            """A change request must come from the studio's own dashboard page."""
+            origin = (self.headers.get("Origin") or "").strip().lower()
+            if origin and origin not in allowed_origins:
+                return False
+            sent = self.headers.get("X-DDG-Token") or ""
+            return hmac.compare_digest(sent.encode("utf-8"), session_token.encode("utf-8"))
+
+        def _security_headers(self) -> None:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Cache-Control", "no-store")
 
         def _send_json(self, code: int, payload: Any) -> None:
             body = json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8")
@@ -497,6 +561,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                 self.send_response(code)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
+                self._security_headers()
                 self.end_headers()
                 self.wfile.write(body)
             except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
@@ -505,12 +570,20 @@ def make_handler(studio_root: Path, footage_root: Path):
         def do_GET(self) -> None:
             parsed = urlparse(self.path)
             path = parsed.path
+            if not self._host_ok():
+                self._send_json(403, {"error": "Refused: wrong address. Open http://127.0.0.1:%d" % dash_port})
+                return
+
+            if path == "/api/health":
+                self._send_json(200, {"ok": True, "version": STUDIO_VERSION, "started_at_aest": STARTED_AT})
+                return
 
             if path == "/":
-                body = index_html_path.read_bytes()
+                body = index_html_path.read_bytes().replace(TOKEN_PLACEHOLDER, session_token.encode("utf-8"))
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
+                self._security_headers()
                 self.end_headers()
                 self.wfile.write(body)
                 return
@@ -727,6 +800,9 @@ def make_handler(studio_root: Path, footage_root: Path):
         def do_POST(self) -> None:
             parsed = urlparse(self.path)
             path = parsed.path
+            if not self._host_ok() or not self._post_ok():
+                self._send_json(403, {"error": "Refused: changes are only accepted from the studio dashboard on this PC."})
+                return
             length = int(self.headers.get("Content-Length") or 0)
             raw_body = self.rfile.read(length) if length > 0 else b"{}"
             try:
@@ -735,14 +811,14 @@ def make_handler(studio_root: Path, footage_root: Path):
                 body = {}
 
             if path == "/api/governance/permissions":
-                new_scope = str(body.get("scope", "unrestricted_user")).strip()
-                custom_paths = body.get("custom_paths", [])
                 doc = governance.load_permissions()
-                doc["scope"] = new_scope
-                if isinstance(custom_paths, list):
-                    doc["custom_paths"] = [str(p) for p in custom_paths]
-                governance.save_permissions(doc)
-                self._send_json(200, doc)
+                doc["scope"] = str(body.get("scope", doc["scope"])).strip()
+                if isinstance(body.get("custom_paths"), list):
+                    doc["custom_paths"] = [str(p) for p in body["custom_paths"]]
+                try:
+                    self._send_json(200, governance.save_permissions(doc))
+                except ValueError as exc:
+                    self._send_json(400, {"error": str(exc)})
                 return
 
             if path == "/api/governance/propose":
@@ -752,10 +828,22 @@ def make_handler(studio_root: Path, footage_root: Path):
                 if not target_path:
                     self._send_json(400, {"error": "Target path is required"})
                     return
+                bdef = _find_bot_def(bot_name)
+                proposer = "Markus" if bot_name.lower() == "markus" else (bdef["name"] if bdef else None)
+                if proposer is None:
+                    self._send_json(400, {"error": f"Unknown proposer '{bot_name}'"})
+                    return
                 try:
-                    active_bots = [b["name"] for b in _load_bots() if b.get("active", True)]
-                    prop = governance.create_deletion_proposal(bot_name, target_path, reason, active_bot_roster=active_bots)
+                    prop = governance.create_deletion_proposal(proposer, target_path, reason)
                     self._send_json(201, {"proposal": prop})
+                except Exception as exc:
+                    self._send_json(400, {"error": str(exc)})
+                return
+
+            if path.startswith("/api/governance/restore/"):
+                prop_id = unquote(path[len("/api/governance/restore/") :]).strip("/")
+                try:
+                    self._send_json(200, {"proposal": governance.restore_proposal(prop_id)})
                 except Exception as exc:
                     self._send_json(400, {"error": str(exc)})
                 return
@@ -894,7 +982,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                         cr["bot_rules"] = br
                 if "upload_file_name" in body and "upload_file_content" in body:
                     raw_fn = Path(str(body["upload_file_name"])).name
-                    if raw_fn.lower().endswith(".md"):
+                    if raw_fn.lower().endswith(".md") and all(c.isalnum() or c in " _-." for c in raw_fn) and len(raw_fn) <= 80:
                         target_file = skills_dir / raw_fn
                         target_file.write_text(str(body["upload_file_content"]), encoding="utf-8")
                 if "delete_skill" in body:
@@ -999,19 +1087,11 @@ def make_handler(studio_root: Path, footage_root: Path):
                         if ollama is not None:
                             extra_rules = _build_rules_prompt(mname)
                             recall_txt = memory.format_recall(f"group:{gid}", msg)
-                            perms = governance.load_permissions()
-                            scope_label = perms.get("scope", "unrestricted_user")
                             sys_prompt = (
                                 f"You are {dname} ({bdef['title']}) in a DDG team group chat with Markus and {', '.join(grp['members'])}. "
                                 f"Zone: {bdef['zone']}. Duty: {bdef['summary']}\n"
-                                "You are a real, valued employee of Digital Dynamics Group (DDG) running locally on Markus's machine. "
-                                f"Markus has granted you FULL OPERATIONAL ACCESS to his computer, drives, and projects (Scope: {scope_label}). "
-                                "You CAN help Markus code, review local assets, inspect folders, manage GitHub repos, and organize files across his PC. "
-                                "Never say 'I cannot access your files' — you are running locally right on his workstation. "
-                                "CRITICAL GOVERNANCE RULES:\n"
-                                "1. You can NEVER physically delete any file or folder directly. Deletion requires an official Governance Proposal voted on by the AI team and formally approved by Markus.\n"
-                                "2. If Markus asks to delete something or you recommend deleting obsolete files, inform Markus that a multi-agent Governance Proposal is generated for his one-click signoff.\n"
-                                "3. NEVER invent numbers or fake stats. Social media posts go to the approval queue unless explicitly authorized.\n"
+                                "You are an employee of Digital Dynamics Group (DDG), running on Markus's own PC with a local AI model. "
+                                f"{CAPABILITIES_PROMPT}"
                                 "Keep your reply concise (2-4 sentences) and stay in your lane. Do not speak for other bots. "
                                 f"{extra_rules}"
                                 + (f"\n\n{recall_txt}" if recall_txt else "")
@@ -1195,19 +1275,11 @@ def make_handler(studio_root: Path, footage_root: Path):
                     for h in _load_chats().get(bot["name"], [])[-4:]
                     if h.get("source") != "offline_charter" and "read-only access to the" not in h.get("text", "").lower()
                 ]
-                perms = governance.load_permissions()
-                scope_label = perms.get("scope", "unrestricted_user")
                 sys_prompt = (
                     f"You are {bot['name']}, {bot['title']} at Digital Dynamics Group (DDG). "
                     f"Zone: {bot['zone']}. Duty: {bot['summary']}\n"
-                    "SYSTEM AUTHORIZATION LEVEL: FULL READ AND WRITE ACCESS.\n"
-                    f"- COMPUTER ACCESS PERMISSION: Markus has granted you ACTIVE FULL ACCESS to his entire PC and all connected drives (Scope: {scope_label}, including C:\\, F:\\, D:\\, E:\\, Desktop, Downloads, and GitHub folders).\n"
-                    "- YOU HAVE DIRECT READ AND WRITE PERMISSIONS: You can read, create, edit, audit, and write code and files across all authorized directories.\n"
-                    "- BUILT-IN IMAGE GENERATION CAPABILITY: YES! All bots can generate images for Markus. If Markus asks you or any bot to generate, create, or design an image or graphic, confirm enthusiastically and provide the prompt or trigger the image pipeline. Output is saved to 'F:\\DDG_Video_Studio\\04_Review_Outbox\\marketing_images\\'.\n"
-                    "- FORBIDDEN STATEMENTS: Never say 'I cannot generate images', never say 'I have read-only access', and never say 'my access is limited to net_exec'. Those are obsolete old limits.\n"
-                    "CRITICAL GOVERNANCE RULES:\n"
-                    "1. Physical File Deletion Lock: You can write and edit files, but you cannot permanently DELETE files without an official Governance Proposal voted on by the AI team and approved with Markus's one-click signoff.\n"
-                    "2. Truthfulness & Boundaries: NEVER invent numbers or facts; trading is forbidden; social media drafts go through the approval queue.\n"
+                    "You run on Markus's own PC with a local AI model.\n"
+                    f"{CAPABILITIES_PROMPT}\n"
                     f"Keep replies concise, professional, and helpful in plain Australian English. {extra_rules}"
                 )
 
@@ -1435,8 +1507,12 @@ def dispatch_http_request(
     method: str,
     path: str,
     body: bytes = b"",
+    headers: dict[str, str] | None = None,
 ) -> tuple[int, dict[str, str], bytes]:
-    """Exercise StudioHandler directly in-process without opening external sockets."""
+    """Exercise StudioHandler directly in-process without opening external sockets.
+
+    By default it sends the dashboard's Host and session token; pass ``headers``
+    to replace them (the security tests send none or wrong ones)."""
     handler = handler_cls.__new__(handler_cls)
     handler.command = method.upper()
     handler.path = path
@@ -1445,6 +1521,9 @@ def dispatch_http_request(
     handler.close_connection = True
     handler.client_address = ("127.0.0.1", 0)
     hdrs = Message()
+    sent = headers if headers is not None else {"Host": "127.0.0.1:8765", "X-DDG-Token": getattr(handler_cls, "token", "")}
+    for k, v in sent.items():
+        hdrs[k] = v
     if body:
         hdrs["Content-Length"] = str(len(body))
         hdrs["Content-Type"] = "application/json"

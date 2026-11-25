@@ -1,0 +1,12 @@
+{
+  "model": "qwen3:8b",
+  "stream": false,
+  "think": false,
+  "format": "json",
+  "keep_alive": "10m",
+  "options": {"num_ctx": 8192, "temperature": 0.2},
+  "messages": [
+    {"role": "system", "content": "You are a paper-money crypto trader in a research test. No real money. Reply with one JSON object only: {\"action\": \"LONG\" | \"SHORT\" | \"FLAT\", \"confidence\": number from 0 to 1, \"reason\": \"one short sentence\"}."},
+    {"role": "user", "content": "TEST SNAPSHOT (made-up numbers for a speed test). Coin: BTC-USDT. Last price 60150. Change: 1 minute +0.04%, 5 minutes -0.21%, 1 hour +0.65%, 24 hours -1.8%. 5-minute candles, last 12 closes: 60310, 60280, 60295, 60240, 60210, 60190, 60220, 60175, 60160, 60130, 60170, 60150. Volume last 5 minutes is 1.4 times the 1-hour average. 1-hour volatility is about average for the week. Price is below the 20-period 5-minute average and above the 1-hour 50-period average. Current position: FLAT. Account: 100000 fake USD. Rules: you may go LONG, SHORT or stay FLAT; code sets the stop and target. Decide for the next 5 minutes."}
+  ]
+}

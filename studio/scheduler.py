@@ -65,28 +65,33 @@ def queue_failure_for_daily_digest(
 def build_heimdall_daily_list(
     studio_root: str | Path = STUDIO_ROOT,
     max_items: int = 5,
+    waiting: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
-    """Generate Heimdall's weekday 07:00 AEST list (<= 5 bullets, each with a recommendation)."""
+    """Heimdall's weekday 07:00 AEST list (<= 5 items, each with a recommendation).
+
+    Built only from real records: things waiting on Markus (passed in by the
+    server: deletion proposals, social posts) and failed routines from the
+    digest queue. No fixed or invented items (the old hard-coded DA-04 line was
+    removed 26 Nov 2026).
+    """
     q_path = Path(studio_root) / "logs" / "daily_digest_queue.json"
     pending = load_json(q_path).get("pending_failures", []) if q_path.exists() else []
 
-    items: list[dict[str, str]] = [
-        {
-            "item": "DA-04 / INC-20261008-001 (S1): Rotate exposed Hypest keys + enable passkeys/2FA",
-            "recommendation": "Rotate Stripe live/webhook secrets first, then AWS/Google/Apple/DB, then turn on 2FA.",
-        }
-    ]
-    for fail in pending[: max(0, max_items - len(items))]:
+    items: list[dict[str, str]] = list(waiting or [])
+    for fail in pending:
         items.append(
             {
                 "item": f"{fail['bot']} job '{fail['job']}' failed at {fail['timestamp_aest']}",
-                "recommendation": f"Inspect local log and re-run manually; error: {fail['error'][:120]}",
+                "recommendation": f"Check the log and re-run it; error: {fail['error'][:120]}",
             }
         )
+    if not items:
+        items.append({"item": "Nothing is waiting on you", "recommendation": "No approvals or failed routines in the studio's records."})
 
     return {
         "generated_at_aest": datetime.now(AEST).isoformat(timespec="seconds"),
         "bot": "Heimdall",
         "max_items": max_items,
+        "more_not_shown": max(0, len(items) - max_items),
         "items": items[:max_items],
     }

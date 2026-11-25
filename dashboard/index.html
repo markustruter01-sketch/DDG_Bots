@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="ddg-token" content="__DDG_SESSION_TOKEN__" />
 <title>DDG | Local Bot Studio</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23000000'/%3E%3Crect x='15' y='4' width='2' height='4' fill='%23ffffff'/%3E%3Ccircle cx='16' cy='4' r='2' fill='%23ffffff'/%3E%3Crect x='7' y='9' width='18' height='15' rx='4' fill='%23ffffff'/%3E%3Crect x='10' y='13' width='4' height='4' rx='1' fill='%23000000'/%3E%3Crect x='18' y='13' width='4' height='4' rx='1' fill='%23000000'/%3E%3Crect x='12' y='20' width='8' height='2' rx='1' fill='%23000000'/%3E%3Crect x='4' y='14' width='2' height='5' rx='1' fill='%23ffffff'/%3E%3Crect x='26' y='14' width='2' height='5' rx='1' fill='%23ffffff'/%3E%3C/svg%3E" />
 <style>
@@ -1009,6 +1010,19 @@
   </main>
 
 <script>
+/* Request lock (26 Nov 2026): the server only accepts changes that carry this page's session token. */
+(function () {
+  const tokenEl = document.querySelector('meta[name="ddg-token"]');
+  const DDG_TOKEN = tokenEl ? tokenEl.content : '';
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = function (url, opts) {
+    const o = Object.assign({}, opts || {});
+    if ((o.method || 'GET').toUpperCase() !== 'GET') {
+      o.headers = Object.assign({}, o.headers || {}, { 'X-DDG-Token': DDG_TOKEN });
+    }
+    return nativeFetch(url, o);
+  };
+})();
 let currentView = 'bots';
 let activeBotName = 'Heimdall';
 let activeGroupId = null;
@@ -1327,7 +1341,7 @@ async function loadSocial() {
   const platforms = data.platforms || {};
   const q = (data.queue || []).slice().reverse();
   const loginBtns = Object.keys(platforms).map(k =>
-    `<button class="chip" onclick="socialLogin('${esc(k)}')">Log in: ${esc(platforms[k])}</button>`).join('');
+    `<button class="chip" onclick="socialLogin(${jsArg(k)})">Log in: ${esc(platforms[k])}</button>`).join('');
   const rows = q.length ? q.map(it => {
     const pending = it.status === 'pending_approval';
     const dot = it.status === 'posted' ? 'confirmed' : (it.status === 'failed' ? 'problem' : (pending ? 'working' : 'late'));
@@ -1335,7 +1349,7 @@ async function loadSocial() {
       <div class="mono"><span class="status-pill"><span class="dot ${dot}" aria-hidden="true"></span>${esc(it.platform)} · ${esc(it.status.replace(/_/g, ' '))} · ${esc(it.by || '')}</span></div>
       <div style="margin:6px 0;white-space:pre-wrap">${esc(it.text)}</div>
       ${it.note ? `<div class="mono" style="color:var(--ng-amber)">${esc(it.note)}</div>` : ''}
-      ${pending ? `<div class="row" style="margin-top:6px"><button class="btn sm" onclick="socialDecision('${esc(it.id)}','approve')">Approve &amp; post</button><button class="btn secondary sm" onclick="socialDecision('${esc(it.id)}','reject')">Reject</button></div>` : ''}
+      ${pending ? `<div class="row" style="margin-top:6px"><button class="btn sm" onclick="socialDecision(${jsArg(it.id)},'approve')">Approve &amp; post</button><button class="btn secondary sm" onclick="socialDecision(${jsArg(it.id)},'reject')">Reject</button></div>` : ''}
     </div>`;
   }).join('') : '<div style="color:var(--ng-text-2)">No drafts yet. Ask Marketing to write a post, then press "Queue as X post" under its reply.</div>';
   el.innerHTML = `
@@ -1386,51 +1400,63 @@ async function loadGovernanceProposals() {
   const el = document.getElementById('governancePanel');
   if (!el) return;
   const { ok, data } = await apiFetch('/api/governance/proposals');
-  if (!ok) { el.textContent = 'Could not load governance proposals.'; return; }
+  if (!ok) { el.textContent = 'Could not load proposals.'; return; }
   const props = (data && data.proposals) || [];
   if (!props.length) {
-    el.innerHTML = '<div style="color:var(--ng-text-2)">Zero pending deletion proposals. Your files and drives are 100% safe.</div>';
+    el.innerHTML = '<div style="color:var(--ng-text-2)">No proposals. Nothing is waiting to go to quarantine.</div>';
     return;
   }
   el.innerHTML = props.slice().reverse().map(p => {
     const isPending = p.status === 'pending_markus_approval';
-    const dot = isPending ? 'problem' : (p.status === 'executed' ? 'confirmed' : 'late');
-    const votes = Object.entries(p.bot_votes || {}).map(([b, v]) => `
-      <span class="status-pill" style="margin-right:6px"><span class="dot confirmed"></span>${esc(b)}: ${esc(v.decision)}</span>
+    const inQuarantine = p.status === 'quarantined';
+    const dot = isPending ? 'problem' : (inQuarantine || p.status === 'restored' ? 'confirmed' : 'late');
+    const checks = (p.checks || []).map(c => `
+      <span class="status-pill" style="margin-right:6px"><span class="dot ${c.ok ? 'confirmed' : 'problem'}"></span>${esc(c.name)}: ${esc(c.detail)}</span>
     `).join('');
-
     return `
       <div class="list-item" style="flex-direction:column;align-items:stretch;margin-bottom:8px">
         <div class="row" style="justify-content:space-between">
-          <div class="mono"><span class="status-pill"><span class="dot ${dot}"></span>${esc(p.status.replace(/_/g, ' '))}</span> &middot; Proposed by <strong>${esc(p.proposer)}</strong></div>
+          <div class="mono"><span class="status-pill"><span class="dot ${dot}"></span>${esc(String(p.status).replace(/_/g, ' '))}</span> &middot; Proposed by <strong>${esc(p.proposer)}</strong></div>
           <div class="mono tabular" style="color:var(--ng-text-3)">${esc(p.created_at_aest)}</div>
         </div>
         <div style="margin:6px 0">
-          <div><strong>Target:</strong> <code style="word-break:break-all">${esc(p.target)}</code> (${p.is_dir ? 'Directory' : 'File'})</div>
-          <div style="color:var(--ng-text-2);margin-top:2px"><strong>Reason:</strong> ${esc(p.reason || 'None provided')}</div>
+          <div><strong>Target:</strong> <code style="word-break:break-all">${esc(p.target)}</code> (${p.is_dir ? 'Folder' : 'File'})</div>
+          <div style="color:var(--ng-text-2);margin-top:2px"><strong>Reason:</strong> ${esc(p.reason || 'None given')}</div>
         </div>
-        <div class="row" style="margin:4px 0;flex-wrap:wrap">
-          <span class="mono" style="margin-right:6px">Bot Consensus:</span> ${votes}
-        </div>
+        ${checks ? `<div class="row" style="margin:4px 0;flex-wrap:wrap"><span class="mono" style="margin-right:6px">Checks:</span> ${checks}</div>` : ''}
         ${p.execution_note ? `<div class="mono" style="color:var(--ng-mint);margin-top:4px">${esc(p.execution_note)}</div>` : ''}
         ${isPending ? `
           <div class="row" style="margin-top:8px;gap:8px">
-            <button class="btn sm" onclick="resolveGovernance('${esc(p.id)}', 'approve')">One-Click Approve &amp; Delete</button>
-            <button class="btn secondary sm" onclick="resolveGovernance('${esc(p.id)}', 'veto')">Veto / Keep File</button>
-          </div>
-        ` : ''}
+            <button class="btn sm" onclick="resolveGovernance(${jsArg(p.id)}, 'approve')">Approve: move to quarantine</button>
+            <button class="btn secondary sm" onclick="resolveGovernance(${jsArg(p.id)}, 'veto')">Veto: leave it</button>
+          </div>` : ''}
+        ${inQuarantine ? `
+          <div class="row" style="margin-top:8px;gap:8px">
+            <button class="btn secondary sm" onclick="restoreGovernance(${jsArg(p.id)})">Restore to original place</button>
+          </div>` : ''}
       </div>
     `;
   }).join('');
 }
 
 async function resolveGovernance(propId, decision) {
-  const { ok, data } = await apiFetch('/api/governance/resolve/' + encodeURIComponent(propId), {
+  await apiFetch('/api/governance/resolve/' + encodeURIComponent(propId), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ decision })
   });
   loadGovernanceProposals();
+}
+
+async function restoreGovernance(propId) {
+  const { ok, data } = await apiFetch('/api/governance/restore/' + encodeURIComponent(propId), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+  });
+  await loadGovernanceProposals();
+  if (!ok && data && data.error) {
+    const el = document.getElementById('governancePanel');
+    if (el) { const d = document.createElement('div'); d.className = 'mono'; d.style.color = 'var(--ng-amber)'; d.textContent = 'Restore failed: ' + data.error; el.prepend(d); }
+  }
 }
 
 /* ===== Marketing Free Image Generation Studio ===== */
@@ -1642,7 +1668,7 @@ function renderRulesDrawer() {
   const active = new Set(customRulesState.active_skills || []);
   if (row) {
     row.innerHTML = BUILTIN_SKILLS.map(sk =>
-      `<button class="chip ${active.has(sk) ? 'active-skill' : ''}" onclick="toggleSkillChip('${esc(sk)}')">${esc(sk)}</button>`
+      `<button class="chip ${active.has(sk) ? 'active-skill' : ''}" onclick="toggleSkillChip(${jsArg(sk)})">${esc(sk)}</button>`
     ).join('');
   }
   const list = customRulesState.uploaded_skills || [];
@@ -1653,12 +1679,12 @@ function renderRulesDrawer() {
     } else {
       uplList.innerHTML = list.map(item => `
         <div class="list-item" style="padding:6px 10px;gap:8px;background:rgba(255,255,255,0.04);border-radius:10px">
-          <span style="cursor:pointer;font-weight:500;font-size:13px" onclick="editSkillItem('${esc(item.name).replace(/'/g, "\\'")}')" title="Click to edit">
+          <span style="cursor:pointer;font-weight:500;font-size:13px" onclick="editSkillItem(${jsArg(item.name)})" title="Click to edit">
             📄 ${esc(item.name.replace(/\.md$/i, ''))}
           </span>
           <div class="row" style="gap:4px">
-            <button class="chip" style="font-size:10px;padding:2px 6px" onclick="editSkillItem('${esc(item.name).replace(/'/g, "\\'")}')">Edit</button>
-            <button class="chip" style="font-size:10px;padding:2px 6px;color:var(--ng-amber)" onclick="deleteSkillFile('${esc(item.name).replace(/'/g, "\\'")}')">Delete</button>
+            <button class="chip" style="font-size:10px;padding:2px 6px" onclick="editSkillItem(${jsArg(item.name)})">Edit</button>
+            <button class="chip" style="font-size:10px;padding:2px 6px;color:var(--ng-amber)" onclick="deleteSkillFile(${jsArg(item.name)})">Delete</button>
           </div>
         </div>
       `).join('');
@@ -1953,14 +1979,14 @@ async function loadBots() {
         const statusTxt = b.active ? 'Active' : 'Paused';
         const dname = b.display_name || b.name;
         return `<div class="list-item ${isSelected ? 'active' : ''}">
-          <button class="list-item-btn" onclick="selectBot('${esc(b.name)}')" style="display:flex;align-items:center;gap:10px">
+          <button class="list-item-btn" onclick="selectBot(${jsArg(b.name)})" style="display:flex;align-items:center;gap:10px">
             <span class="bot-avatar sm" aria-hidden="true">${botSpriteSvg(b.name, 26)}</span>
             <span style="min-width:0">
               <div style="font-weight:600;font-size:14.5px">${esc(dname)}</div>
               <div class="mono" style="margin-top:2px"><span class="status-pill"><span class="dot ${statusCls}" aria-hidden="true"></span>${statusTxt} · ${esc(b.title)}</span></div>
             </span>
           </button>
-          <button class="ng-switch" role="switch" aria-checked="${b.active ? 'true' : 'false'}" aria-label="Toggle ${esc(dname)}" onclick="toggleBot('${esc(b.name)}', this)">
+          <button class="ng-switch" role="switch" aria-checked="${b.active ? 'true' : 'false'}" aria-label="Toggle ${esc(dname)}" onclick="toggleBot(${jsArg(b.name)}, this)">
             <span class="ng-switch-knob"></span>
           </button>
         </div>`;
@@ -1970,7 +1996,7 @@ async function loadBots() {
       html += lastGroupsCache.map(g => {
         const isSel = activeGroupId === g.id;
         return `<div class="list-item ${isSel ? 'active' : ''}">
-          <button class="list-item-btn" onclick="selectGroup('${esc(g.id)}')" style="display:flex;align-items:center;gap:10px">
+          <button class="list-item-btn" onclick="selectGroup(${jsArg(g.id)})" style="display:flex;align-items:center;gap:10px">
             <span class="bot-avatar sm" aria-hidden="true">${botSpriteSvg('group', 26)}</span>
             <span style="min-width:0">
               <div style="font-weight:600;font-size:14.5px">${esc(g.name)}</div>
@@ -2066,26 +2092,28 @@ async function createGroupChat() {
 }
 
 function renderChatMessage(rawText) {
+  /* Escape everything first. Images are allowed only from the studio's own /media/ folder,
+     with no inline script; anything else in ![..](..) stays as plain text. */
   if (!rawText) return '';
   let s = esc(rawText);
-  // Replace markdown images: ![alt](url)
-  s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (match, alt, url) => {
+    if (!/^\/media\/[A-Za-z0-9_\-.\/%]+$/.test(url) || url.includes('..')) return match;
     return `<div class="chat-image-preview" style="margin-top:10px;margin-bottom:6px">
-      <img src="${url}" alt="${alt}" style="max-width:100%;max-height:380px;border-radius:10px;border:1px solid rgba(61,220,151,0.3);box-shadow:0 8px 24px rgba(0,0,0,0.6);display:block;cursor:pointer" onclick="window.open('${url}','_blank')">
+      <a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${alt}" style="max-width:100%;max-height:380px;border-radius:10px;border:1px solid rgba(61,220,151,0.3);box-shadow:0 8px 24px rgba(0,0,0,0.6);display:block"></a>
       <div class="row" style="margin-top:6px;gap:8px">
-        <a href="${url}" target="_blank" class="chip" style="font-size:11px">🔍 Open Full-Res Image</a>
-        <span class="mono" style="font-size:11px;color:var(--ng-mint)">${alt || 'Rendered Image'}</span>
+        <a href="${url}" target="_blank" rel="noopener" class="chip" style="font-size:11px">Open full-size image</a>
+        <span class="mono" style="font-size:11px;color:var(--ng-mint)">${alt || 'Rendered image'}</span>
       </div>
     </div>`;
   });
-  // Replace bold: **text**
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  // Replace inline code: `code`
   s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;color:var(--ng-mint)">$1</code>');
-  // Replace newlines with <br>
   s = s.replace(/\n/g, '<br>');
   return s;
 }
+
+/* A safe argument for an inline onclick="fn(...)": JSON-quoted, then HTML-escaped. */
+function jsArg(v) { return esc(JSON.stringify(String(v == null ? '' : v))); }
 
 function renderSelectedGroup(grp) {
   document.getElementById('selectedBotAvatar').innerHTML = botSpriteSvg('group', 30);
@@ -2102,7 +2130,7 @@ function renderSelectedGroup(grp) {
       ["Video Launch Plan", "Let's plan our next DDG YouTube video + X post together."],
       ["@Marketing Check", "@Marketing give me a quick status on our video pipeline."]
     ].map(([label, text]) =>
-      `<button class="chip" onclick="sendQuickPrompt('${esc(text).replace(/'/g, "\\'")}')">${esc(label)}</button>`
+      `<button class="chip" onclick="sendQuickPrompt(${jsArg(text)})">${esc(label)}</button>`
     ).join('');
   }
   const logEl = document.getElementById('chatLog');
@@ -2146,7 +2174,7 @@ function renderSelectedBot(bot) {
   const qpRow = document.getElementById('quickPromptsRow');
   if (qpRow) {
     qpRow.innerHTML = prompts.map(([label, text]) =>
-      `<button class="chip" onclick="sendQuickPrompt('${esc(text).replace(/'/g, "\\'")}')">${esc(label)}</button>`
+      `<button class="chip" onclick="sendQuickPrompt(${jsArg(text)})">${esc(label)}</button>`
     ).join('');
   }
 
@@ -2393,9 +2421,9 @@ async function loadInbox() {
         <div style="font-weight:600">${esc(f.rel_path)}</div>
         <div class="mono tabular">${esc(f.size_mb)} MB</div>
         <div class="row" style="margin-top:6px">
-          <button class="btn sm" onclick="triggerProcess('${esc(f.rel_path)}', 'preview')">Run Preview</button>
-          <button class="btn secondary sm" onclick="triggerProcess('${esc(f.rel_path)}', 'full')">Full 1080p60</button>
-          <button class="btn secondary sm" onclick="triggerProcess('${esc(f.rel_path)}', 'shorts')">Make Short</button>
+          <button class="btn sm" onclick="triggerProcess(${jsArg(f.rel_path)}, 'preview')">Run Preview</button>
+          <button class="btn secondary sm" onclick="triggerProcess(${jsArg(f.rel_path)}, 'full')">Full 1080p60</button>
+          <button class="btn secondary sm" onclick="triggerProcess(${jsArg(f.rel_path)}, 'shorts')">Make Short</button>
         </div>
       </div>
     `).join('');
@@ -2440,7 +2468,7 @@ async function loadJobs() {
     const dotCls = j.preflight_passed ? 'confirmed' : 'problem';
     const label = j.preflight_passed ? 'Confirmed' : 'Problem';
     return `<div class="list-item ${j.job_id===activeJobId?'active':''}">
-      <button class="list-item-btn" onclick="selectJob('${esc(j.job_id)}')">
+      <button class="list-item-btn" onclick="selectJob(${jsArg(j.job_id)})">
         <div style="font-weight:600;font-size:15px">${esc(j.job_id)}</div>
         <div class="mono" style="margin-top:4px"><span class="status-pill"><span class="dot ${dotCls}" aria-hidden="true"></span>${label} · ${esc(j.mode)}</span></div>
       </button>
@@ -2462,8 +2490,8 @@ async function selectJob(id) {
     <h1>${esc(data.manifest.job_id)}</h1>
     ${videoRel ? `<video controls src="/media/${encodeURIComponent(id)}/${encodeURIComponent(videoRel)}"></video>` : '<div class="mono">No data — no video rendered yet</div>'}
     <div class="row">
-      <button id="approveBtn" class="btn" ${data.manifest.preflight_passed ? '' : 'disabled'} onclick="approveJob('${esc(id)}')">Approve export</button>
-      <button id="tweakBtn" class="btn secondary" onclick="saveTweak('${esc(id)}')">Save tweak note</button>
+      <button id="approveBtn" class="btn" ${data.manifest.preflight_passed ? '' : 'disabled'} onclick="approveJob(${jsArg(id)})">Approve export</button>
+      <button id="tweakBtn" class="btn secondary" onclick="saveTweak(${jsArg(id)})">Save tweak note</button>
       <span id="actionMsg" class="mono" role="status"></span>
     </div>
     <h2 style="margin-top:18px">Preflight gates (G0-G11)</h2>
