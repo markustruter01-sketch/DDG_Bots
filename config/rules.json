@@ -1,0 +1,264 @@
+{
+  "reconciled_as_of": "2026-11-24",
+  "G0_numbers": {
+    "hud_must_balance": true,
+    "balance_tolerance": 0.01,
+    "unknown_tokens": ["—", "No data"],
+    "forbid_red_numbers": true,
+    "require_numbers_check_log": true
+  },
+  "G1_source_and_master": {
+    "min_width": 1920,
+    "min_height": 1080,
+    "min_fps": 59.0,
+    "master_bitrate_bps_min": 8000000,
+    "master_bitrate_bps_max": 12000000,
+    "master_target_bitrate": "11M",
+    "master_maxrate": "26M",
+    "master_bufsize": "22M"
+  },
+  "G2_G5b_audio": {
+    "lufs_target": -14.0,
+    "lufs_tolerance": 1.5,
+    "true_peak_max_db": -1.5,
+    "afftdn_delay_ms": 25.0,
+    "max_residual_sync_ms": 5.0,
+    "swear_only_roots": ["fuck", "shit"],
+    "censor_noise_band_hz": [200, 1800],
+    "censor_gain": 0.05992,
+    "censor_fade_ms": 30,
+    "tv_icon_episodes_enabled": false,
+    "tv_icon_shorts_scale": 0.65,
+    "forbid_non_swear_privacy_mutes": true,
+    "max_non_swear_drop_db": 18.0
+  },
+  "G3_subtitles": {
+    "max_word_duration_s": 1.5,
+    "max_speech_gap_s": 3.0,
+    "max_drift_s": 0.3,
+    "longform_sub_margin_l": 780,
+    "longform_sub_margin_r": 330,
+    "longform_sub_right_edge_max": 1590,
+    "shorts_avoid_bottom_pct": 0.20,
+    "shorts_avoid_right_px": 140
+  },
+  "G4_grid_and_text": {
+    "grid_tolerance_px": 1,
+    "bar_height_tolerance_px": 1,
+    "min_title_font_px": 30
+  },
+  "G5_overlays": {
+    "max_combined_area_ratio": 0.75,
+    "min_face_clearance_ratio": 0.15,
+    "min_quick_longform_s": 4.5,
+    "min_deepdive_graphic_s": 10.0,
+    "min_heavy_longform_s": 15.0,
+    "min_short_beat_s": 1.2,
+    "max_short_beat_s": 3.0,
+    "max_wild_ratio": 0.25,
+    "max_fly_across_per_min": 1.0,
+    "max_4th_wall_shock_per_ep": 2,
+    "overlay_priority": [
+      "face_voice",
+      "subject_screen_or_product",
+      "energy_edits",
+      "commentary"
+    ]
+  },
+  "G6_avatar_and_zoom": {
+    "avatar_center": [1820, 940],
+    "avatar_faces_left": true,
+    "avatar_above_all_blurs": true,
+    "dramatic_zoom_duration_range_s": [3.0, 5.0],
+    "dramatic_zoom_anchor": [0, 1080]
+  },
+  "G7_webcam_windows": {
+    "window_blur_behind_head_excluded": true,
+    "window_blur_hard_edge_polygons": true,
+    "min_webcam_psnr_db": 30.0
+  },
+  "G8_G8b_blurs_and_ocr": {
+    "constant_box_per_span": true,
+    "pad_px": 6,
+    "bridge_gap_s": 1.0,
+    "downscale_factor": 12,
+    "blur_sigma_min": 9.0,
+    "sample_fps": 10,
+    "ocr_interval_s": 3.0,
+    "sensitive_ocr_regexes": [
+      "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+      "[A-Za-z0-9-]+\\.replit\\.app",
+      "ddg-control",
+      "sk_live_[A-Za-z0-9]+",
+      "whsec_[A-Za-z0-9]+",
+      "AKIA[0-9A-Z]{16}"
+    ],
+    "sensitive_terms": [
+      "reshoot",
+      "second attempt",
+      "replit.app",
+      "ddg-control",
+      "hypest",
+      "twilio",
+      "sk_live_"
+    ]
+  },
+  "G9_brand": {
+    "official_intro_outro_untouched": true,
+    "shorts_outro_speed": 2.0,
+    "shorts_outro_duration_s": 1.5,
+    "forbid_emojis": true,
+    "forbid_glitch_on_new_graphics": true
+  },
+  "G10_cuts": {
+    "forbid_small_dead_air_cuts": true,
+    "min_proposable_gap_s": 4.0,
+    "silence_rms_window_ms": 10,
+    "cut_padding_ms_range": [100, 150],
+    "cut_fade_ms_range": [20, 40],
+    "noise_floor_db": -42.0
+  },
+  "G11_mentions": {
+    "min_duration_s": 4.5,
+    "asr_brand_aliases": {
+      "mynbyn": {
+        "official_name": "MUNBYN",
+        "url": "https://www.munbyn.com",
+        "category": "product",
+        "is_private_business": false
+      },
+      "munbyn": {
+        "official_name": "MUNBYN",
+        "url": "https://www.munbyn.com",
+        "category": "product",
+        "is_private_business": false
+      },
+      "replit": {
+        "official_name": "Replit",
+        "url": "https://replit.com",
+        "category": "platform",
+        "is_private_business": false
+      },
+      "claude": {
+        "official_name": "Claude (Anthropic)",
+        "url": "https://claude.ai",
+        "category": "ai_platform",
+        "is_private_business": false
+      },
+      "grok bot": {
+        "official_name": "Grok Bot (xAI)",
+        "url": "https://x.ai",
+        "category": "ai_platform",
+        "is_private_business": false
+      },
+      "grokbot": {
+        "official_name": "Grok Bot (xAI)",
+        "url": "https://x.ai",
+        "category": "ai_platform",
+        "is_private_business": false
+      },
+      "antigravity": {
+        "official_name": "Google Antigravity",
+        "url": "https://antigravity.google",
+        "category": "ai_platform",
+        "is_private_business": false
+      },
+      "opusclip": {
+        "official_name": "OpusClip",
+        "url": "https://www.opus.pro",
+        "category": "ai_platform",
+        "is_private_business": false
+      },
+      "opus clip": {
+        "official_name": "OpusClip",
+        "url": "https://www.opus.pro",
+        "category": "ai_platform",
+        "is_private_business": false
+      },
+      "cattle dog coffee": {
+        "official_name": "Cattle Dog Coffee",
+        "url": "https://cattledogcoffee.com.au",
+        "category": "ddg_venture",
+        "is_private_business": false
+      },
+      "threads of empire": {
+        "official_name": "Threads of Empire",
+        "url": "https://ddg.limited",
+        "category": "novel",
+        "is_private_business": false,
+        "asset_hint": "Threads_of_Empire_Cover_1_Percent_v01.png"
+      },
+      "maisy": {
+        "official_name": "Maisy (CDC Mascot)",
+        "url": "https://cattledogcoffee.com.au",
+        "category": "dog_cutaway",
+        "is_private_business": false
+      },
+      "bloom bar": {
+        "official_name": "The Bloom Bar (@bloom.bar.co)",
+        "url": "https://instagram.com/bloom.bar.co",
+        "category": "partner_business",
+        "is_private_business": false
+      },
+      "shopify": {
+        "official_name": "Shopify",
+        "url": "https://www.shopify.com",
+        "category": "platform",
+        "is_private_business": false
+      },
+      "streamlabs": {
+        "official_name": "Streamlabs",
+        "url": "https://streamlabs.com",
+        "category": "software",
+        "is_private_business": false
+      },
+      "alpaca": {
+        "official_name": "Alpaca (Paper Trading)",
+        "url": "https://alpaca.markets",
+        "category": "platform",
+        "is_private_business": false
+      },
+      "oanda": {
+        "official_name": "OANDA (Practice Trading)",
+        "url": "https://www.oanda.com",
+        "category": "platform",
+        "is_private_business": false
+      },
+      "hypest": {
+        "official_name": "Hypest",
+        "url": "",
+        "category": "private_business",
+        "is_private_business": true
+      }
+    }
+  },
+  "opusclip": {
+    "account": "info@digitaldynamics-group.com",
+    "plan": "Pro",
+    "remaining_credits_baseline": 261,
+    "credits_as_of": "2026-11-23",
+    "credits_per_source_min": 1,
+    "warn_over_credits": 140,
+    "require_private": true,
+    "require_raw_source": true,
+    "require_analysis_only": true,
+    "allow_raw_publish": false,
+    "require_markus_pick_before_render": true
+  },
+  "youtube": {
+    "synthetic_label": false,
+    "description_ai_line": "Made with AI tools."
+  },
+  "marketing_mode_schedules_aest": {
+    "timezone": "Australia/Brisbane",
+    "allowed_minute_marks": [0, 15, 30, 45],
+    "jobs": [
+      {"bot": "Heimdall", "name": "daily_list_to_markus", "days": ["mon", "tue", "wed", "thu", "fri"], "time": "07:00"},
+      {"bot": "Heimdall", "name": "monday_review", "days": ["mon"], "time": "09:00"},
+      {"bot": "Marketing", "name": "daily_brief_5pm", "days": ["mon", "tue", "wed", "thu", "fri"], "time": "17:00"},
+      {"bot": "Marketing", "name": "friday_content_plan", "days": ["fri"], "time": "07:00"},
+      {"bot": "Marketing", "name": "ddg_x_post_and_own_replies", "days": ["mon", "wed", "fri"], "time": "21:15"},
+      {"bot": "Tyr", "name": "cdc_inbox_and_stock_check", "days": ["mon", "tue", "wed", "thu", "fri"], "time": "13:15"}
+    ]
+  }
+}

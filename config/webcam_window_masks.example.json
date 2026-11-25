@@ -1,0 +1,27 @@
+{
+  "description": "Webcam-local polygon window pane masks (G7, 24 Nov 2026). Coordinates are normalized 0..1 relative to the webcam rectangle so masks follow webcam moves/scales with zero per-frame tracking.",
+  "webcam_rect": {
+    "x": 0,
+    "y": 679,
+    "width": 537,
+    "height": 401
+  },
+  "person_matte_protect": true,
+  "panes": [
+    {
+      "id": "left_window_pane",
+      "exclude_behind_head": false,
+      "polygon_norm": [[0.03, 0.05], [0.24, 0.05], [0.24, 0.58], [0.03, 0.58]]
+    },
+    {
+      "id": "center_window_behind_head",
+      "exclude_behind_head": true,
+      "polygon_norm": [[0.34, 0.06], [0.64, 0.06], [0.64, 0.62], [0.34, 0.62]]
+    },
+    {
+      "id": "right_wall_window_or_mirror",
+      "exclude_behind_head": false,
+      "polygon_norm": [[0.76, 0.08], [0.96, 0.08], [0.96, 0.65], [0.76, 0.65]]
+    }
+  ]
+}

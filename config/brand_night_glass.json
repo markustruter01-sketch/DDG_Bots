@@ -1,0 +1,94 @@
+{
+  "version": "Night Glass v6.1 (24 Nov 2026)",
+  "tokens_css": {
+    "--ng-night": "#07080b",
+    "--ng-graphite": "#141518",
+    "--ng-text": "#ffffff",
+    "--ng-text-2": "rgba(255, 255, 255, 0.72)",
+    "--ng-text-3": "rgba(255, 255, 255, 0.62)",
+    "--ng-glass-plain": "rgba(255, 255, 255, 0.05)",
+    "--ng-glass-photo": "rgba(16, 18, 24, 0.52)",
+    "--ng-edge": "rgba(255, 255, 255, 0.10)",
+    "--ng-hairline": "rgba(255, 255, 255, 0.08)",
+    "--ng-ice": "#6cc7f0",
+    "--ng-mint": "#3ddc97",
+    "--ng-violet": "#a78bfa",
+    "--ng-amber": "#f5a524",
+    "--ng-gain": "#2fb768",
+    "--ng-dur-instant": "120ms",
+    "--ng-dur-quick": "200ms",
+    "--ng-dur-base": "320ms",
+    "--ng-dur-slow": "520ms",
+    "--ng-dur-story": "900ms",
+    "--ng-ease-out": "cubic-bezier(0.22, 1, 0.36, 1)",
+    "--ng-ease-in": "cubic-bezier(0.55, 0, 1, 0.45)",
+    "--ng-ease-move": "cubic-bezier(0.65, 0, 0.35, 1)",
+    "--ng-ease-spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+    "--ng-ease-elastic": "cubic-bezier(0.34, 1.72, 0.64, 1)",
+    "--ng-stagger": "40ms",
+    "--ng-loop-spin": "1.2s",
+    "--ng-loop-fade": "1s"
+  },
+  "colors": {
+    "night": "#07080b",
+    "graphite": "#141518",
+    "white": "#ffffff",
+    "white_72": [255, 255, 255, 184],
+    "white_62": [255, 255, 255, 158],
+    "glass_on_photo": [16, 18, 24, 133],
+    "glass_on_graphite": [255, 255, 255, 13],
+    "hairline_outer": [255, 255, 255, 26],
+    "hairline_inner": [255, 255, 255, 20],
+    "top_highlight": [255, 255, 255, 15],
+    "accents": {
+      "ddg_ice": "#6cc7f0",
+      "finance_mint": "#3ddc97",
+      "creative_violet": "#a78bfa",
+      "amber_problem_only": "#f5a524",
+      "finance_gain": "#2fb768"
+    },
+    "hud": {
+      "expenses_orange": "#f5a524",
+      "revenue_green": "#3ddc97",
+      "debt_yellow": "#ffd65c",
+      "charity_pink": "#ff7eb6",
+      "net_profit_orange": "#f5a524",
+      "forbid_red_numbers": true
+    },
+    "forbid_red": true,
+    "shorts_background": "#000000"
+  },
+  "fonts": {
+    "body_family": "Geist",
+    "mono_family": "Geist Mono",
+    "preferred_files": {
+      "regular": "Geist-Regular.ttf",
+      "medium": "Geist-Medium.ttf",
+      "semibold": "Geist-SemiBold.ttf",
+      "light": "Geist-Light.ttf",
+      "mono": "GeistMono-Regular.ttf",
+      "mono_medium": "GeistMono-Medium.ttf"
+    },
+    "windows_fallback": [
+      "C:/Windows/Fonts/segoeui.ttf",
+      "C:/Windows/Fonts/segoeuib.ttf",
+      "C:/Windows/Fonts/consola.ttf",
+      "C:/Windows/Fonts/arial.ttf"
+    ]
+  },
+  "grid": {
+    "width": 1920,
+    "height": 1080,
+    "columns": 12,
+    "margin": 20,
+    "gutter": 16,
+    "baseline": 8,
+    "top_bar_y0": 20,
+    "top_bar_y1": 92,
+    "content_y0": 112,
+    "card_radius": 16,
+    "button_radius": 12,
+    "pill_radius": 999,
+    "blur_halo_px": 26
+  }
+}

@@ -1,0 +1,2592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DDG | Local Bot Studio</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23000000'/%3E%3Crect x='15' y='4' width='2' height='4' fill='%23ffffff'/%3E%3Ccircle cx='16' cy='4' r='2' fill='%23ffffff'/%3E%3Crect x='7' y='9' width='18' height='15' rx='4' fill='%23ffffff'/%3E%3Crect x='10' y='13' width='4' height='4' rx='1' fill='%23000000'/%3E%3Crect x='18' y='13' width='4' height='4' rx='1' fill='%23000000'/%3E%3Crect x='12' y='20' width='8' height='2' rx='1' fill='%23000000'/%3E%3Crect x='4' y='14' width='2' height='5' rx='1' fill='%23ffffff'/%3E%3Crect x='26' y='14' width='2' height='5' rx='1' fill='%23ffffff'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --ng-night: #090a0f;
+    --ng-graphite: #12141a;
+    --ng-text: #ffffff;
+    --ng-text-2: rgba(255, 255, 255, 0.85);
+    --ng-text-3: rgba(255, 255, 255, 0.60);
+    --ng-text-sub: rgba(255, 255, 255, 0.90);
+    --ng-glass-plain: rgba(255, 255, 255, 0.08);
+    --ng-glass-thick: rgba(255, 255, 255, 0.12);
+    --ng-glass-elevated: rgba(255, 255, 255, 0.18);
+    --ng-glass-photo: rgba(255, 255, 255, 0.10);
+    --ng-edge: rgba(255, 255, 255, 0.24);
+    --ng-hairline: rgba(255, 255, 255, 0.15);
+    --ng-highlight: rgba(255, 255, 255, 0.32);
+    --ng-btn-outline: rgba(255, 255, 255, 0.24);
+    --ng-btn-fill: rgba(255, 255, 255, 0.14);
+    --ng-pill-fill: rgba(255, 255, 255, 0.18);
+    --ng-row-hover: rgba(255, 255, 255, 0.12);
+    --ng-lockup-divider: rgba(255, 255, 255, 0.35);
+    --ng-ring-track: rgba(255, 255, 255, 0.22);
+    --ng-ring-live: rgba(255, 255, 255, 0.85);
+    --ng-dusk-glow: rgba(108, 199, 240, 0.12);
+    --ng-ice: #6cc7f0;
+    --ng-mint: #3ddc97;
+    --ng-violet: #a78bfa;
+    --ng-amber: #f5a524;
+    --ng-amber-edge: rgba(245, 165, 36, 0.45);
+    --ng-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Geist", "Segoe UI", system-ui, sans-serif;
+    --ng-mono: "SF Mono", "Geist Mono", Consolas, monospace;
+    --ng-blur-bg: blur(28px) saturate(190%);
+    --ng-blur-subtle: blur(16px) saturate(170%);
+    --ng-apple-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.40);
+    --ng-card-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.48), inset 0 1px 1px rgba(255, 255, 255, 0.36);
+    --ng-dur-instant: 120ms;
+    --ng-dur-quick: 200ms;
+    --ng-dur-base: 320ms;
+    --ng-dur-slow: 520ms;
+    --ng-dur-story: 900ms;
+    --ng-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ng-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+    --ng-ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+    --ng-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ng-stagger: 40ms;
+    --ng-loop-spin: 1.2s;
+    --ng-loop-live: 2.4s;
+    --ng-loop-fade: 1s;
+    --ng-loop-bar-2: 166ms;
+    --ng-loop-bar-3: 333ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --ng-dur-instant: 1ms;
+      --ng-dur-quick: 1ms;
+      --ng-dur-base: 1ms;
+      --ng-dur-slow: 1ms;
+      --ng-dur-story: 1ms;
+      --ng-ease-out: linear;
+      --ng-ease-in: linear;
+      --ng-ease-move: linear;
+      --ng-ease-spring: linear;
+    }
+    .dot.live::after,
+    .ng-revolve::before,
+    .ng-bars span {
+      animation: none !important;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  /* Night Glass v6.1 Apple-style Floating Scrollbars with M10 Micro-interaction */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    backdrop-filter: var(--ng-blur-subtle);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background-color var(--ng-dur-instant) var(--ng-ease-out),
+                border-color var(--ng-dur-instant) var(--ng-ease-out),
+                width var(--ng-dur-quick) var(--ng-ease-spring);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.36);
+    border-color: var(--ng-ice);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--ng-ice);
+  }
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  }
+
+  body.dusk {
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    background:
+      linear-gradient(rgba(7, 8, 12, 0.15), rgba(7, 8, 12, 0.35)),
+      url('/assets/ddg_studio_bg.webp') no-repeat center center fixed;
+    background-size: cover;
+    background-color: var(--ng-graphite);
+    color: var(--ng-text);
+    font-family: var(--ng-sans);
+    font-size: 14px;
+  }
+
+  .mono {
+    font-family: var(--ng-mono);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--ng-text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tabular { font-variant-numeric: tabular-nums; }
+  .hidden { display: none !important; }
+
+  :focus-visible {
+    outline: 2px solid var(--ng-ice);
+    outline-offset: 2px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-height: 72px;
+    padding: 10px 18px;
+    border-radius: 16px;
+    background: var(--ng-glass-plain);
+    backdrop-filter: var(--ng-blur-bg);
+    -webkit-backdrop-filter: var(--ng-blur-bg);
+    border: 1px solid var(--ng-edge);
+    box-shadow: var(--ng-apple-shadow);
+    border-top: 2px solid var(--ng-ice);
+    margin-bottom: 16px;
+  }
+
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+  }
+  .lockup img { width: 24px; height: 24px; object-fit: contain; display: block; }
+  .lockup-ddg { font-weight: 600; color: var(--ng-text); letter-spacing: -0.2px; }
+  .lockup-div { width: 1px; height: 18px; background: var(--ng-lockup-divider); }
+  .lockup-prod { font-weight: 300; color: var(--ng-text-sub); letter-spacing: -0.2px; }
+
+  /* M1 Sliding pill nav bar */
+  .nav-bar {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 14px;
+    background: var(--ng-glass-plain);
+    backdrop-filter: var(--ng-blur-subtle);
+    -webkit-backdrop-filter: var(--ng-blur-subtle);
+    border: 1px solid var(--ng-edge);
+  }
+  .ng-pill {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    height: calc(100% - 8px);
+    border-radius: 10px;
+    background: var(--ng-btn-fill);
+    pointer-events: none;
+    transition: left var(--ng-dur-base) var(--ng-ease-move),
+                width var(--ng-dur-base) var(--ng-ease-move);
+  }
+  .nav-tab {
+    position: relative;
+    z-index: 1;
+    min-height: 36px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ng-text-2);
+    font-family: var(--ng-sans);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color var(--ng-dur-instant) var(--ng-ease-out),
+                transform var(--ng-dur-instant) var(--ng-ease-out);
+  }
+  .nav-tab[aria-current="page"] { color: var(--ng-text); }
+  .nav-tab:active { transform: scale(0.98); }
+
+  .banner-offline {
+    padding: 12px 18px;
+    border-radius: 16px;
+    background: var(--ng-glass-plain);
+    border: 1px solid var(--ng-amber-edge);
+    margin-bottom: 16px;
+    color: var(--ng-text-2);
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 350px 1fr; gap: 16px; align-items: start; }
+  .grid-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+
+  .card {
+    background: var(--ng-glass-plain);
+    backdrop-filter: var(--ng-blur-bg);
+    -webkit-backdrop-filter: var(--ng-blur-bg);
+    border: 1px solid var(--ng-edge);
+    box-shadow: var(--ng-card-shadow);
+    border-radius: 16px;
+    padding: 14px 18px;
+  }
+  .card.accent-ice { border-top: 2px solid var(--ng-ice); }
+  .card.accent-mint { border-top: 2px solid var(--ng-mint); }
+  .card.accent-violet { border-top: 2px solid var(--ng-violet); }
+
+  .list-item {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--ng-hairline);
+    margin-bottom: 10px;
+    background: var(--ng-glass-plain);
+    color: var(--ng-text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition: background-color var(--ng-dur-instant) var(--ng-ease-out),
+                border-color var(--ng-dur-instant) var(--ng-ease-out),
+                transform var(--ng-dur-instant) var(--ng-ease-out);
+  }
+  .list-item:hover { background: var(--ng-row-hover); }
+  .list-item.active { background: var(--ng-btn-fill); border-color: var(--ng-ice); }
+  .list-item-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    flex: 1;
+    padding: 0;
+  }
+  .list-item-btn:active { transform: scale(0.98); }
+
+  /* Night Glass v6.1 status dots */
+  .status-pill { display: inline-flex; align-items: center; gap: 8px; }
+  .dot {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .dot.working { background: var(--ng-text); }
+  .dot.confirmed { background: var(--ng-mint); }
+  .dot.problem { background: var(--ng-amber); }
+  .dot.late { border: 2px solid var(--ng-amber); background: transparent; }
+  .dot.nodata { border: 2px solid var(--ng-text); background: transparent; }
+
+  /* M2 Live ring (one per screen) */
+  .dot.live::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 999px;
+    border: 1px solid var(--ng-ring-live);
+    animation: ng-ripple var(--ng-loop-live) var(--ng-ease-out) infinite;
+    pointer-events: none;
+  }
+  @keyframes ng-ripple {
+    0% { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(3); opacity: 0; }
+  }
+
+  /* M7 Loader with words */
+  .ng-loader { display: inline-flex; align-items: center; gap: 8px; color: var(--ng-text-2); }
+  .ng-revolve {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 1px solid var(--ng-ring-track);
+    display: inline-block;
+  }
+  .ng-revolve::before {
+    content: "";
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--ng-text);
+    top: -2px;
+    left: 5px;
+    transform-origin: 2px 9px;
+    animation: ng-spin var(--ng-loop-spin) linear infinite;
+  }
+  @keyframes ng-spin { to { transform: rotate(360deg); } }
+
+  /* M8 Bars inside a button */
+  .ng-bars { display: inline-flex; align-items: center; gap: 3px; height: 12px; margin-right: 6px; }
+  .ng-bars span {
+    width: 3px;
+    height: 12px;
+    background: var(--ng-text);
+    animation: ng-bars-fade var(--ng-loop-fade) ease-in-out infinite;
+  }
+  .ng-bars span:nth-child(2) { animation-delay: var(--ng-loop-bar-2); }
+  .ng-bars span:nth-child(3) { animation-delay: var(--ng-loop-bar-3); }
+  @keyframes ng-bars-fade {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+  }
+
+  /* M9 Drawn tick */
+  .ng-tick { width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; }
+  .ng-tick path {
+    fill: none;
+    stroke: var(--ng-mint);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    animation: ng-draw var(--ng-dur-base) var(--ng-ease-out) forwards;
+  }
+  @keyframes ng-draw { to { stroke-dashoffset: 0; } }
+
+  /* M10 Press feedback on buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 1px solid var(--ng-btn-outline);
+    background: var(--ng-btn-fill);
+    color: var(--ng-text);
+    font-family: var(--ng-sans);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--ng-dur-instant) var(--ng-ease-out),
+                border-color var(--ng-dur-instant) var(--ng-ease-out),
+                transform var(--ng-dur-instant) var(--ng-ease-out);
+  }
+  .btn.secondary { background: transparent; }
+  .btn.sm { min-height: 34px; padding: 0 12px; font-size: 12.5px; }
+  .btn:hover:not(:disabled) { background: var(--ng-pill-fill); }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--ng-edge);
+    background: transparent;
+    color: var(--ng-text-2);
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background-color var(--ng-dur-instant) var(--ng-ease-out),
+                transform var(--ng-dur-instant) var(--ng-ease-out);
+  }
+  .chip:hover { background: var(--ng-btn-fill); color: var(--ng-text); }
+  .chip:active { transform: scale(0.98); }
+
+  /* M11 Stretch toggle switch */
+  .switch-wrap { display: inline-flex; align-items: center; gap: 10px; }
+  .ng-switch {
+    position: relative;
+    width: 52px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid var(--ng-btn-outline);
+    background: var(--ng-glass-plain);
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color var(--ng-dur-base) var(--ng-ease-move);
+  }
+  .ng-switch[aria-checked="true"] {
+    background: var(--ng-text);
+    border-color: var(--ng-text);
+  }
+  .ng-switch-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--ng-text);
+    transition: transform var(--ng-dur-base) var(--ng-ease-move),
+                width var(--ng-dur-quick) var(--ng-ease-move),
+                background-color var(--ng-dur-base) var(--ng-ease-move);
+  }
+  .ng-switch[aria-checked="true"] .ng-switch-knob {
+    transform: translateX(22px);
+    background: var(--ng-graphite);
+  }
+  .ng-switch.stretching .ng-switch-knob { width: 34px; }
+
+  .chat-shell {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 136px);
+    min-height: 540px;
+    padding: 0;
+    overflow: hidden;
+  }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px 14px;
+    border-bottom: 1px solid var(--ng-hairline);
+    flex-shrink: 0;
+  }
+  .chat-header-id {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .bot-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--ng-btn-fill);
+    border: 1px solid var(--ng-edge);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ng-ice);
+    flex-shrink: 0;
+  }
+  .bot-avatar.sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    font-size: 12px;
+  }
+  .chat-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    background: rgba(7, 8, 11, 0.45);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+  .chat-empty {
+    margin: auto;
+    text-align: center;
+    max-width: 440px;
+    padding: 32px 16px;
+  }
+  .chat-empty-title {
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+  }
+  .chat-empty-sub {
+    color: var(--ng-text-2);
+    line-height: 1.5;
+    margin-bottom: 16px;
+    font-size: 13.5px;
+  }
+  .chat-bubble-row {
+    display: flex;
+    flex-direction: column;
+    max-width: 78%;
+  }
+  .chat-bubble-row.user {
+    align-self: flex-end;
+    align-items: flex-end;
+  }
+  .chat-bubble-row.bot {
+    align-self: flex-start;
+    align-items: flex-start;
+  }
+  .chat-bubble {
+    padding: 12px 17px;
+    border-radius: 18px;
+    line-height: 1.52;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 14px;
+    letter-spacing: -0.1px;
+  }
+  .chat-bubble-row.user .chat-bubble {
+    background: var(--ng-btn-fill);
+    backdrop-filter: var(--ng-blur-subtle);
+    -webkit-backdrop-filter: var(--ng-blur-subtle);
+    border: 1px solid var(--ng-btn-outline);
+    border-bottom-right-radius: 4px;
+    color: var(--ng-text);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+  .chat-bubble-row.bot .chat-bubble {
+    background: var(--ng-glass-plain);
+    backdrop-filter: var(--ng-blur-subtle);
+    -webkit-backdrop-filter: var(--ng-blur-subtle);
+    border: 1px solid var(--ng-edge);
+    border-bottom-left-radius: 4px;
+    color: var(--ng-text);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  /* Chain of Thought / Reasoning Block */
+  .cot-block {
+    margin-bottom: 8px;
+    border-radius: 12px;
+    background: rgba(14, 16, 22, 0.6);
+    border: 1px solid var(--ng-hairline);
+    overflow: hidden;
+  }
+  .cot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    font-family: var(--ng-mono);
+    font-size: 11px;
+    color: var(--ng-ice);
+    cursor: pointer;
+    background: rgba(108, 199, 240, 0.06);
+    user-select: none;
+  }
+  .cot-header:hover { background: rgba(108, 199, 240, 0.12); }
+  .cot-content {
+    padding: 8px 12px;
+    font-family: var(--ng-mono);
+    font-size: 11.5px;
+    color: var(--ng-text-2);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    max-height: 220px;
+    overflow-y: auto;
+    border-top: 1px solid var(--ng-hairline);
+  }
+  .cot-content.collapsed { display: none; }
+  .chat-meta {
+    margin-top: 6px;
+    font-family: var(--ng-mono);
+    font-size: 10px;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    color: var(--ng-text-3);
+  }
+  .chat-composer {
+    padding: 14px 20px 16px;
+    border-top: 1px solid var(--ng-hairline);
+    background: var(--ng-glass-plain);
+    backdrop-filter: var(--ng-blur-subtle);
+    -webkit-backdrop-filter: var(--ng-blur-subtle);
+    flex-shrink: 0;
+  }
+  .chat-composer-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 6px 8px 6px 14px;
+    border-radius: 16px;
+    background: rgba(7, 8, 11, 0.65);
+    border: 1px solid var(--ng-edge);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+    transition: border-color var(--ng-dur-instant) var(--ng-ease-out),
+                box-shadow var(--ng-dur-instant) var(--ng-ease-out);
+  }
+  .chat-composer-box:focus-within {
+    border-color: var(--ng-ice);
+    box-shadow: 0 0 0 3px rgba(108, 199, 240, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  .chat-composer-box textarea {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--ng-text);
+    padding: 8px 0;
+    margin: 0;
+    min-height: 36px;
+    max-height: 140px;
+    resize: none;
+    outline: none;
+    font-family: var(--ng-sans);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .roster-section-label {
+    margin: 14px 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .roster-scroll {
+    max-height: calc(100vh - 210px);
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .llm-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--ng-edge);
+    background: var(--ng-glass-plain);
+    white-space: nowrap;
+  }
+  .rules-drawer {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--ng-hairline);
+    background: rgba(18, 20, 26, 0.75);
+    backdrop-filter: var(--ng-blur-bg);
+    -webkit-backdrop-filter: var(--ng-blur-bg);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+  }
+  .chip.active-skill {
+    background: var(--ng-btn-fill);
+    border-color: var(--ng-ice);
+    color: var(--ng-text);
+  }
+  .btn.mic-listening {
+    border-color: var(--ng-mint);
+    color: var(--ng-mint);
+  }
+  .speak-btn {
+    background: transparent;
+    border: none;
+    color: var(--ng-text-3);
+    font-family: var(--ng-mono);
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 0 4px;
+    margin-left: 6px;
+  }
+  .speak-btn:hover { color: var(--ng-ice); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  td, th {
+    text-align: left;
+    padding: 9px 6px;
+    border-bottom: 1px solid var(--ng-hairline);
+    color: var(--ng-text-2);
+  }
+  th { color: var(--ng-text-3); }
+  video {
+    width: 100%;
+    max-height: 420px;
+    border-radius: 12px;
+    background: var(--ng-night);
+    margin-top: 8px;
+  }
+  input[type="text"], input[type="number"], textarea {
+    width: 100%;
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: var(--ng-night);
+    color: var(--ng-text);
+    border: 1px solid var(--ng-edge);
+    font-family: var(--ng-sans);
+    font-size: 14px;
+    margin-top: 6px;
+  }
+  textarea { min-height: 74px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  h1 { font-size: 28px; font-weight: 400; margin: 4px 0 10px; }
+  h2 { font-size: 20px; font-weight: 500; margin: 4px 0 10px; }
+  h3 { font-size: 15px; font-weight: 600; margin: 4px 0 8px; }
+
+  @media (max-width: 760px) {
+    body.dusk { padding: 14px 14px calc(24px + env(safe-area-inset-bottom)); }
+    .topbar { flex-direction: column; align-items: flex-start; }
+    .grid-2, .grid-equal { grid-template-columns: 1fr; }
+    .btn, .nav-tab { min-height: 44px; }
+  }
+</style>
+</head>
+<body class="dusk">
+  <header class="topbar">
+    <div class="lockup">
+      <img id="ddgMark" src="/assets/DDG_Logo_New.png" alt="DDG" onerror="this.style.display='none'" />
+      <span class="lockup-ddg">DDG</span>
+      <span class="lockup-div" aria-hidden="true"></span>
+      <span class="lockup-prod">Local Bot Studio</span>
+    </div>
+
+    <nav class="nav-bar" aria-label="Studio sections">
+      <div id="navPill" class="ng-pill" aria-hidden="true"></div>
+      <button class="nav-tab" data-view="bots" aria-current="page" onclick="switchView('bots', this)">Bots &amp; Chat</button>
+      <button class="nav-tab" data-view="video" onclick="switchView('video', this)">Video Studio</button>
+      <button class="nav-tab" data-view="schedule" onclick="switchView('schedule', this)">Schedules &amp; System</button>
+    </nav>
+
+    <div class="row" style="margin:0">
+      <span class="status-pill">
+        <span id="liveDot" class="dot working live" aria-hidden="true"></span>
+        <span id="watcherStatus" class="mono">Reading status</span>
+      </span>
+      <div class="switch-wrap">
+        <span class="mono">Studio Active</span>
+        <button id="pauseSwitch" class="ng-switch" role="switch" aria-checked="true" aria-label="Toggle studio active" onclick="togglePause()">
+          <span class="ng-switch-knob"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="offlineBanner" class="banner-offline hidden">
+    <strong>Local server offline.</strong> Run <code>scripts\run_studio.bat</code> and open <code>http://127.0.0.1:8765</code> to connect live bot chat, triggers, and approvals.
+  </div>
+
+  <!-- VIEW 1: BOTS & CHAT -->
+  <main id="view-bots" class="grid-2">
+    <section class="card accent-ice" aria-label="DDG Bot Roster">
+      <div class="mono">Marketing Mode Org Chart</div>
+      <h2>DDG AI Employees</h2>
+      <div id="botRoster" class="roster-scroll ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading roster...</div>
+    </section>
+
+    <section class="card chat-shell" aria-label="Bot Command Center">
+      <div class="chat-header">
+        <div class="chat-header-id">
+          <div id="selectedBotAvatar" class="bot-avatar" aria-hidden="true">HM</div>
+          <div style="min-width:0">
+            <div class="mono" id="selectedBotZone">Select a bot</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <h2 id="selectedBotName" style="margin:2px 0 0;font-size:19px">Heimdall</h2>
+              <button id="renameBotBtn" class="chip" style="padding:3px 9px;font-size:11px" onclick="renameActiveBot()">Rename</button>
+              <button class="chip" style="padding:3px 9px;font-size:11px;color:var(--ng-text-3)" onclick="clearCurrentChat()" title="Start fresh conversation with this bot">Clear Chat</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button id="rulesToggleBtn" class="chip" onclick="toggleRulesDrawer()">Rules &amp; Skills</button>
+          <button id="ttsToggleBtn" class="chip" onclick="toggleAutoTts()">Voice Readback: Off</button>
+          <button id="handsFreeBtn" class="chip" onclick="toggleHandsFree()">Hands-Free: Off</button>
+          <button id="alertsBtn" class="chip" onclick="enableAlerts()">Alerts: Off</button>
+          <div class="llm-pill" title="Local Ollama LLM status">
+            <span id="llmDot" class="dot nodata" aria-hidden="true"></span>
+            <span id="llmBadge" class="mono">Checking LLM...</span>
+          </div>
+          <button id="startLlmBtn" class="chip hidden" style="color:var(--ng-mint);border-color:var(--ng-mint)" onclick="startLocalLlm()" title="Launch local Ollama server with 1 click">▶ Start Local LLM</button>
+        </div>
+      </div>
+
+      <!-- GROKBOT-STYLE SKILLS, RULES & COMPUTER ACCESS MANAGER -->
+      <div id="rulesDrawer" class="rules-drawer hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
+          <div>
+            <div style="font-size:16px;font-weight:600">Skills &amp; Computer Access Manager</div>
+            <div class="mono" style="color:var(--ng-text-2);margin-top:2px">Configure bot employee capabilities, inspect active rules, and control system file access.</div>
+          </div>
+          <button class="chip" onclick="toggleRulesDrawer()">Close</button>
+        </div>
+
+        <!-- Computer Access Scope Control -->
+        <div class="list-item" style="flex-direction:column;align-items:stretch;margin-bottom:14px;background:rgba(10,12,16,0.6);border:1px solid var(--ng-edge)">
+          <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div>
+              <div class="mono" style="color:var(--ng-ice);font-weight:600">Computer &amp; Drive Access Permission Scope</div>
+              <div style="font-size:12.5px;color:var(--ng-text-2);margin-top:2px">Control which drives and directories the bots are authorized to inspect, read, and write.</div>
+            </div>
+            <div class="row" style="gap:8px">
+              <select id="accessScopeSelect" style="padding:6px 12px;border-radius:10px;background:var(--ng-night);border:1px solid var(--ng-ice);color:var(--ng-text);font-family:var(--ng-mono);font-size:12px" onchange="updateComputerScope(this.value)">
+                <option value="unrestricted_user">Entire PC (User Profile + Drives F:, D:, E:)</option>
+                <option value="desktop_and_f">Desktop Folders + F: Drive + Downloads</option>
+                <option value="full_f_drive">Full F:\ Drive + DDG Workspace</option>
+                <option value="ddg_workspace">DDG Workspaces Only (C:\Users\User\Desktop\DDG and F:\DDG_Video_Studio)</option>
+                <option value="full_system">Full System Access (Entire C: and All Drives)</option>
+              </select>
+              <span id="scopeSavedStatus" class="mono" style="color:var(--ng-mint)"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Built-in Quick Skills Toggles -->
+        <div class="mono" style="margin-bottom:6px">Active Behavior &amp; Communication Skills:</div>
+        <div id="skillChipsRow" class="row" style="margin-bottom:12px;gap:6px"></div>
+        
+        <!-- Active Custom Skills Library (List, View, Edit, Delete) -->
+        <div style="margin-bottom:12px">
+          <div class="mono" style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span>Installed Custom Skills &amp; CLAUDE.md Prompts (<span id="skillCountBadge">0</span>):</span>
+            <span style="color:var(--ng-text-3)">Click a skill to view or edit</span>
+          </div>
+          <div id="uploadedSkillsList" class="row" style="gap:8px;flex-wrap:wrap"></div>
+        </div>
+
+        <!-- Add or Edit Skill Form -->
+        <div class="list-item" style="flex-direction:column;align-items:stretch;margin-bottom:12px;background:rgba(10,12,16,0.5)">
+          <div class="row" style="justify-content:space-between;margin-bottom:6px">
+            <span class="mono" id="skillEditorTitle" style="color:var(--ng-ice)">+ Add New Skill or Edit Existing</span>
+            <button class="chip" id="clearSkillBtn" style="font-size:11px" onclick="clearSkillEditor()">Reset Form</button>
+          </div>
+          <input type="text" id="skillNameInput" placeholder="Skill Name (e.g. Full-Stack Coder, Marketing Copywriter, Video Editor)..." style="margin-bottom:8px">
+          <textarea id="skillContentInput" style="min-height:90px" placeholder="Enter skill prompt, instructions, guidelines, or persona details..."></textarea>
+          <div class="row" style="margin-top:8px;justify-content:space-between">
+            <div id="dropZone" style="padding:6px 12px;border:1px dashed var(--ng-edge);border-radius:10px;cursor:pointer" onclick="document.getElementById('skillFileInput').click()">
+              <span class="mono" style="font-size:11px;color:var(--ng-text-2)">📁 Or drag/upload .md file</span>
+              <input type="file" id="skillFileInput" accept=".md,.markdown,.txt" style="display:none" onchange="handleSkillFileUpload(this.files)" />
+            </div>
+            <button class="btn sm" onclick="saveActiveSkill()">Save Skill to Library</button>
+          </div>
+        </div>
+
+        <!-- Standing Rules -->
+        <div class="grid-equal" style="gap:12px">
+          <div>
+            <label class="mono" for="globalRulesInput">Standing Founder Rules (Markus &middot; All Bots)</label>
+            <textarea id="globalRulesInput" style="min-height:65px" placeholder="e.g. Always assume Brisbane AEST UTC+10. Never invent numbers..."></textarea>
+          </div>
+          <div>
+            <label class="mono" id="botRuleLabel" for="botRulesInput">Rules for Active Bot</label>
+            <textarea id="botRulesInput" style="min-height:65px" placeholder="e.g. Focus on YouTube hooks and DDG Night Glass style..."></textarea>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;justify-content:flex-end;gap:10px">
+          <span id="rulesStatus" class="mono" role="status"></span>
+          <button class="btn sm" onclick="saveRules()">Save Standing Rules</button>
+        </div>
+      </div>
+
+      <div id="chatLog" class="chat-log" aria-live="polite">
+        <div class="chat-empty">
+          <div class="chat-empty-title">Loading bot...</div>
+        </div>
+      </div>
+
+      <div class="chat-composer">
+        <div id="quickPromptsRow" class="row" style="margin:0 0 10px;gap:6px">
+          <button class="chip" onclick="sendQuickPrompt('Generate today\'s 5-point 7:00am list with recommendations.')">7:00am Daily List</button>
+          <button class="chip" onclick="sendQuickPrompt('Draft one @DDGCompany X post about our latest build step.')">Draft X Post</button>
+          <button class="chip" onclick="sendQuickPrompt('Remind me of your exact hard rules and boundaries.')">Check Boundaries</button>
+        </div>
+        <div class="chat-composer-box">
+          <button id="micBtn" class="btn secondary sm" title="Voice input (speak to bot)" onclick="toggleVoiceInput()" style="min-width:42px;padding:0 10px">Mic</button>
+          <textarea id="chatInput" rows="1" placeholder="Message Heimdall... (Enter to send, Shift+Enter for new line)" onkeydown="handleChatKey(event)" oninput="autoGrowInput(this)"></textarea>
+          <button id="chatSendBtn" class="btn sm" onclick="sendChat()">Send</button>
+        </div>
+        <div id="chatStatus" class="mono" style="margin-top:6px;min-height:14px" role="status"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- VIEW 2: VIDEO STUDIO -->
+  <main id="view-video" class="grid-2 hidden">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card accent-ice">
+        <div class="mono">01_Raw_Inbox</div>
+        <h2>Raw Footage Queue</h2>
+        <div id="inboxList" class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading inbox...</div>
+      </section>
+
+      <section class="card accent-violet">
+        <div class="mono">OpusClip Pro Credit Guard</div>
+        <h3>Check Before Submit</h3>
+        <label class="mono" for="opusMin">Source duration (minutes)</label>
+        <div class="row" style="margin-top:6px">
+          <input id="opusMin" type="number" min="1" value="60" style="width:110px;margin-top:0" />
+          <button class="btn secondary sm" onclick="checkOpusCredits()">Check Credits</button>
+        </div>
+        <div id="opusResult" style="color:var(--ng-text-2);margin-top:8px;font-size:13px">Baseline: 261 credits (warn over 140). Raw clips never published.</div>
+      </section>
+
+      <section class="card">
+        <div class="mono">03_Ready_For_Review</div>
+        <h2>Edit Jobs</h2>
+        <div id="jobsList" class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading jobs...</div>
+      </section>
+    </div>
+
+    <section id="detailPane" class="card" aria-live="polite">
+      <div class="mono">Select an edit job on the left to inspect G0-G11 preflight gates, preview video, and post copy.</div>
+    </section>
+  </main>
+
+  <!-- VIEW 3: SCHEDULES & SYSTEM -->
+  <main id="view-schedule" class="grid-equal hidden">
+    <section class="card accent-ice">
+      <div class="mono">AEST Exact Quarter-Hours (:00 / :15 / :30 / :45)</div>
+      <h2>Marketing-Mode Schedules</h2>
+      <div id="scheduleTable" class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading schedules...</div>
+      <div class="row">
+        <button id="briefBtn" class="btn" onclick="generateHeimdallBrief()">Generate Heimdall 7:00am List</button>
+        <span id="briefStatus" class="mono"></span>
+      </div>
+      <div id="briefOutput" style="margin-top:12px"></div>
+    </section>
+
+    <section class="card accent-violet" style="grid-column:1 / -1">
+      <div class="mono">Marketing &middot; Social Media Approval Queue</div>
+      <h2>Business Social Accounts</h2>
+      <div id="socialPanel" class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading queue...</div>
+    </section>
+
+    <!-- Multi-Agent Governance & Consensus Deletion Lock -->
+    <section class="card accent-amber" style="grid-column:1 / -1">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="mono">Multi-Agent Governance &middot; File Consensus Lock</div>
+          <h2>File Governance &amp; Deletion Proposals</h2>
+        </div>
+        <button class="chip" onclick="loadGovernanceProposals()">Refresh Proposals</button>
+      </div>
+      <p class="mono" style="margin:4px 0 12px;color:var(--ng-text-2)">
+        Physical Safety Lock Active: Bots are physically blocked from deleting any files on your machine.
+        Deletions require an AI team vote + Markus's one-click signoff.
+      </p>
+      <div id="governancePanel" class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Loading proposals...</div>
+    </section>
+
+    <!-- Marketing Free AI Image Generation Panel -->
+    <section class="card accent-ice" style="grid-column:1 / -1">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="mono">Creative Engine · ComfyUI (8188) / SD-WebUI (7860) / Night Glass (A$0/mo)</div>
+          <h2>Marketing Image Studio &amp; Local Diffusion Status</h2>
+        </div>
+        <div class="row" style="gap:8px">
+          <span id="imgEngineStatus" class="status-pill mono">Checking local engines...</span>
+          <button class="chip" onclick="refreshDiffusionStatus()">Refresh Diffusion</button>
+        </div>
+      </div>
+      <div id="diffusionDetails" class="mono" style="margin-top:8px;font-size:12px;color:var(--ng-text-2)"></div>
+      <div class="row" style="gap:10px;margin-top:10px">
+        <input type="text" id="imgGenPrompt" placeholder="Describe the image you want Marketing to create..." style="flex:1" onkeydown="if(event.key==='Enter')generateMarketingImage()">
+        <button class="btn sm" onclick="generateMarketingImage()">Generate Image</button>
+      </div>
+      <div id="imgGalleryRow" style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));gap:12px"></div>
+    </section>
+
+    <!-- Autonomous Video Inbox Watcher & Executive Scheduler -->
+    <section class="card accent-violet" style="grid-column:1 / -1">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="mono">Autonomous Daemons · 100% Local Free Compute</div>
+          <h2>Inbox Auto-Watcher &amp; Executive Scheduler</h2>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="chip" onclick="scanInboxNow()">Scan 01_Raw_Inbox Now</button>
+          <button class="chip" onclick="triggerBriefNow()">Trigger 7:00am Brief Now</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
+        <div class="list-item" style="flex-direction:column;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:8px;width:100%;justify-content:space-between">
+            <strong>📁 Video Inbox Watcher (01_Raw_Inbox)</strong>
+            <span id="watcherBadge" class="status-pill mono">Watching</span>
+          </div>
+          <div id="watcherDesc" class="mono" style="font-size:12px;color:var(--ng-text-2);margin-top:6px">
+            Auto-detects drops, renders preview cuts + WhisperX transcription + Night Glass HUD overlay, moves to 05_Archive_Raw, and fires Windows toasts.
+          </div>
+          <div id="watcherLastScan" class="mono" style="font-size:11px;color:var(--ng-text-3);margin-top:4px">Last scan: checking...</div>
+        </div>
+        <div class="list-item" style="flex-direction:column;align-items:flex-start">
+          <div style="display:flex;align-items:center;gap:8px;width:100%;justify-content:space-between">
+            <strong>🛡️ Executive Briefing Daemon</strong>
+            <span id="schedulerBadge" class="status-pill mono">Scheduled</span>
+          </div>
+          <div id="schedulerDesc" class="mono" style="font-size:12px;color:var(--ng-text-2);margin-top:6px">
+            • Weekdays 7:00am AEST: Compiles &amp; posts Heimdall's Daily 5-item Brief to chat &amp; Windows desktop toast.<br>
+            • Mondays 9:00am AEST: Compiles &amp; posts Monday Executive Review.
+          </div>
+          <div id="schedulerStatusText" class="mono" style="font-size:11px;color:var(--ng-text-3);margin-top:4px">Next run: checking...</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card accent-mint">
+      <div class="mono">RTX 3070 Ti · Path Jail · Local Assets</div>
+      <h2>Local System Health</h2>
+      <div id="systemHealth" class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading system...</div>
+    </section>
+  </main>
+
+<script>
+let currentView = 'bots';
+let activeBotName = 'Heimdall';
+let activeGroupId = null;
+let lastBotsCache = [];
+let lastGroupsCache = [];
+let activeJobId = null;
+let lastTabBtn = null;
+let autoTtsEnabled = localStorage.getItem('ddg_voice_readback') !== 'false';
+let voiceRec = null;
+let voiceListening = false;
+let userWantsListening = false;
+let customRulesState = { global_rules: '', active_skills: [], bot_rules: {} };
+const BUILTIN_SKILLS = [
+  'Concise Bullet Points',
+  'Australian English',
+  'Step-by-Step Guide',
+  'Strict Fact-Check',
+  'Marketing Hook Mode',
+  'Executive Summary'
+];
+
+function esc(str) {
+  return String(str || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+function durMs(token) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  if (!raw) return 1;
+  if (raw.endsWith('ms')) return parseFloat(raw) || 1;
+  if (raw.endsWith('s')) return (parseFloat(raw) || 0) * 1000;
+  return parseFloat(raw) || 1;
+}
+
+function renderTick(text) {
+  return `<span style="color:var(--ng-mint)"><svg class="ng-tick" aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 8.5 L6.2 12 L13.5 4.2"/></svg>${esc(text)}</span>`;
+}
+
+/* M1 Sliding pill positioning (3-step stretch on switch; instant on resize / reduce-motion) */
+function positionPill(btn, animate) {
+  const pill = document.getElementById('navPill');
+  if (!pill || !btn) return;
+  const targetLeft = btn.offsetLeft;
+  const targetWidth = btn.offsetWidth;
+  if (!animate || durMs('--ng-dur-base') <= 2 || !lastTabBtn || lastTabBtn === btn) {
+    pill.style.transition = 'none';
+    pill.style.left = targetLeft + 'px';
+    pill.style.width = targetWidth + 'px';
+    lastTabBtn = btn;
+    return;
+  }
+  const prevLeft = lastTabBtn.offsetLeft;
+  const prevWidth = lastTabBtn.offsetWidth;
+  const minW = Math.min(prevWidth, targetWidth);
+  const inset = Math.round(minW * 0.2);
+  const midLeft = Math.min(prevLeft, targetLeft) + inset;
+  const midRight = Math.max(prevLeft + prevWidth, targetLeft + targetWidth) - inset;
+  const half = Math.max(1, Math.round(durMs('--ng-dur-base') / 2));
+
+  pill.style.transition = '';
+  pill.style.left = midLeft + 'px';
+  pill.style.width = Math.max(24, midRight - midLeft) + 'px';
+  setTimeout(() => {
+    pill.style.left = targetLeft + 'px';
+    pill.style.width = targetWidth + 'px';
+  }, half);
+  lastTabBtn = btn;
+}
+
+function switchView(view, btn) {
+  currentView = view;
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.setAttribute('aria-current', t === btn ? 'page' : 'false');
+  });
+  ['bots', 'video', 'schedule'].forEach(v => {
+    document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
+  });
+  positionPill(btn, true);
+  if (view === 'video') { loadInbox(); loadJobs(); }
+  if (view === 'schedule') { loadSchedule(); loadSystem(); loadSocial(); loadGovernanceProposals(); loadImages(); }
+}
+
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.nav-tab[aria-current="page"]');
+  positionPill(active, false);
+});
+
+async function apiFetch(url, opts) {
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data };
+}
+
+const BOT_QUICK_PROMPTS = {
+  Heimdall: [
+    ["7:00am Daily List", "Generate today's 5-point 7:00am list with recommendations."],
+    ["Monday 9:00am Review", "Give me a quick weekly Marketing Mode status check."],
+    ["Check Boundaries", "Remind me of your exact hard rules and boundaries."]
+  ],
+  Marketing: [
+    ["Generate Marketing Image", "Generate a new marketing promo image for DDG's latest update."],
+    ["Draft @DDGCompany X Post", "Draft one @DDGCompany X post about our latest build step."],
+    ["Video Edit Checklist", "Summarise the key G0-G11 preflight rules for our next YouTube episode."],
+    ["OpusClip Rules", "Remind me of our OpusClip Pro credit and raw-clip rules."]
+  ],
+  Tyr: [
+    ["Draft CDC Post", "Draft one Cattle Dog Coffee social post for Markus to review."],
+    ["CDC Boundaries", "Remind me of your Cattle Dog Coffee boundaries."]
+  ]
+};
+
+function botSpriteSvg(name, size) {
+  const s = size || 32;
+  const key = String(name || '').toLowerCase();
+  // Cute 16x16 pixel-art robot/character sprites (Night Glass palette, crispEdges)
+  const palette = {
+    heimdall:  { body: '#6cc7f0', accent: '#ffffff', eye: '#07080b', hat: '#a78bfa' },
+    marketing: { body: '#3ddc97', accent: '#6cc7f0', eye: '#07080b', hat: '#f5a524' },
+    tyr:       { body: '#f5a524', accent: '#ffffff', eye: '#07080b', hat: '#6cc7f0' },
+    group:     { body: '#3ddc97', accent: '#6cc7f0', eye: '#07080b', hat: '#a78bfa' },
+    mimir:     { body: '#a78bfa', accent: '#ffffff', eye: '#07080b', hat: '#6cc7f0' },
+    njord:     { body: '#6cc7f0', accent: '#3ddc97', eye: '#07080b', hat: '#ffffff' },
+    daedalus:  { body: '#a78bfa', accent: '#f5a524', eye: '#07080b', hat: '#3ddc97' },
+    harald:    { body: '#ffffff', accent: '#6cc7f0', eye: '#07080b', hat: '#f5a524' },
+    hermes:    { body: '#3ddc97', accent: '#ffffff', eye: '#07080b', hat: '#6cc7f0' },
+    plutus:    { body: '#f5a524', accent: '#3ddc97', eye: '#07080b', hat: '#ffffff' }
+  };
+  let p = palette.heimdall;
+  if (key.includes('group')) p = palette.group;
+  else if (key.includes('market') || key.includes('freya')) p = palette.marketing;
+  else if (key.includes('tyr')) p = palette.tyr;
+  else if (key.includes('mím') || key.includes('mim')) p = palette.mimir;
+  else if (key.includes('njord')) p = palette.njord;
+  else if (key.includes('daed')) p = palette.daedalus;
+  else if (key.includes('harald')) p = palette.harald;
+  else if (key.includes('hermes')) p = palette.hermes;
+  else if (key.includes('plutus')) p = palette.plutus;
+
+  if (key.includes('group')) {
+    return `<svg width="${s}" height="${s}" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="5" width="5" height="5" fill="${p.accent}"/><rect x="3" y="7" width="1" height="1" fill="${p.eye}"/><rect x="5" y="7" width="1" height="1" fill="${p.eye}"/>
+      <rect x="9" y="5" width="5" height="5" fill="${p.hat}"/><rect x="10" y="7" width="1" height="1" fill="${p.eye}"/><rect x="12" y="7" width="1" height="1" fill="${p.eye}"/>
+      <rect x="5" y="7" width="6" height="6" fill="${p.body}"/><rect x="6" y="9" width="1" height="2" fill="${p.eye}"/><rect x="9" y="9" width="1" height="2" fill="${p.eye}"/>
+      <rect x="7" y="11" width="2" height="1" fill="${p.eye}"/>
+    </svg>`;
+  }
+  return `<svg width="${s}" height="${s}" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+    <rect x="7" y="1" width="2" height="2" fill="${p.hat}"/>
+    <rect x="7" y="3" width="2" height="1" fill="${p.accent}"/>
+    <rect x="3" y="4" width="10" height="8" fill="${p.body}"/>
+    <rect x="2" y="6" width="1" height="4" fill="${p.accent}"/>
+    <rect x="13" y="6" width="1" height="4" fill="${p.accent}"/>
+    <rect x="4" y="5" width="8" height="5" fill="#141518"/>
+    <rect x="5" y="6" width="2" height="2" fill="${p.accent}"/>
+    <rect x="9" y="6" width="2" height="2" fill="${p.accent}"/>
+    <rect x="6" y="9" width="4" height="1" fill="${p.hat}"/>
+    <rect x="5" y="12" width="6" height="2" fill="${p.body}"/>
+    <rect x="5" y="14" width="2" height="1" fill="${p.accent}"/>
+    <rect x="9" y="14" width="2" height="1" fill="${p.accent}"/>
+  </svg>`;
+}
+
+function botInitials(name) {
+  return String(name || 'AI').slice(0, 2).toUpperCase();
+}
+
+function autoGrowInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(140, Math.max(36, el.scrollHeight)) + 'px';
+}
+
+function toggleAutoTts() {
+  autoTtsEnabled = !autoTtsEnabled;
+  localStorage.setItem('ddg_voice_readback', autoTtsEnabled ? 'true' : 'false');
+  updateTtsButtonUi();
+  if (!autoTtsEnabled && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+function updateTtsButtonUi() {
+  const btn = document.getElementById('ttsToggleBtn');
+  if (btn) {
+    btn.textContent = autoTtsEnabled ? 'Voice Readback: On' : 'Voice Readback: Off';
+    btn.classList.toggle('active-skill', autoTtsEnabled);
+  }
+}
+
+
+/* ===== Voice: neural (Piper) with browser fallback, queue, hands-free loop ===== */
+let neuralTtsReady = false;
+let ttsQueue = [];
+let ttsPlaying = false;
+let currentAudio = null;
+let chatBusy = false;
+let handsFree = localStorage.getItem('ddg_hands_free') === 'true';
+let silenceTimer = null;
+
+async function refreshTtsStatus() {
+  try {
+    const { data } = await apiFetch('/api/tts/status');
+    neuralTtsReady = !!(data && data.neural_ready);
+  } catch (_) {}
+}
+
+function stopSpeaking() {
+  ttsQueue = [];
+  ttsPlaying = false;
+  if (currentAudio) { try { currentAudio.pause(); } catch (_) {} currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function speakText(text, enqueue) {
+  if (!text) return;
+  if (!enqueue) stopSpeaking();
+  ttsQueue.push(String(text));
+  if (!ttsPlaying) playNextTts();
+}
+
+function onSpeechFinished() {
+  ttsPlaying = false;
+  if (handsFree && !chatBusy && !userWantsListening) {
+    userWantsListening = true;
+    initVoiceSession();
+  }
+}
+
+async function playNextTts() {
+  const t = ttsQueue.shift();
+  if (!t) { onSpeechFinished(); return; }
+  ttsPlaying = true;
+  // Never listen while the bot is talking (prevents it hearing itself)
+  if (userWantsListening) { userWantsListening = false; try { voiceRec && voiceRec.stop(); } catch (_) {} }
+  const clean = t.replace(/[*_`#]/g, '');
+  if (neuralTtsReady) {
+    try {
+      const r = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean })
+      });
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = new Audio(url);
+        currentAudio = a;
+        a.onended = () => { URL.revokeObjectURL(url); currentAudio = null; playNextTts(); };
+        a.onerror = () => { currentAudio = null; playNextTts(); };
+        await a.play();
+        return;
+      }
+    } catch (_) { /* fall through to browser voice */ }
+  }
+  if (window.speechSynthesis) {
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 1.05;
+    u.onend = () => playNextTts();
+    u.onerror = () => playNextTts();
+    window.speechSynthesis.speak(u);
+  } else {
+    playNextTts();
+  }
+}
+
+function toggleHandsFree() {
+  handsFree = !handsFree;
+  localStorage.setItem('ddg_hands_free', handsFree ? 'true' : 'false');
+  updateHandsFreeUi();
+  const statusEl = document.getElementById('chatStatus');
+  if (handsFree) {
+    if (!autoTtsEnabled) { autoTtsEnabled = true; localStorage.setItem('ddg_voice_readback', 'true'); updateTtsButtonUi(); }
+    if (statusEl) statusEl.textContent = 'Hands-free on: press Mic once, talk, pause ~2s and it sends. It listens again after the reply.';
+  } else {
+    clearTimeout(silenceTimer);
+  }
+}
+
+function updateHandsFreeUi() {
+  const btn = document.getElementById('handsFreeBtn');
+  if (btn) {
+    btn.textContent = handsFree ? 'Hands-Free: On' : 'Hands-Free: Off';
+    btn.classList.toggle('active-skill', handsFree);
+  }
+}
+
+function actionButtonsHtml() {
+  let h = '<button class="speak-btn" onclick="speakText(this.parentElement.previousElementSibling.textContent)">Speak</button>';
+  if (!activeGroupId && activeBotName === 'Marketing') {
+    h += '<button class="speak-btn" onclick="queueSocialFromBubble(this, \'x\')">Queue as X post</button>';
+  }
+  return h;
+}
+
+async function queueSocialFromBubble(btn, platform) {
+  const text = btn.parentElement.previousElementSibling.textContent.trim();
+  const { ok, data } = await apiFetch('/api/social/draft', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ platform, text, by: 'Marketing' })
+  });
+  const st = document.getElementById('chatStatus');
+  if (ok) {
+    st.innerHTML = renderTick('Queued for your approval (Schedules & System tab)');
+    btn.textContent = 'Queued';
+    btn.disabled = true;
+  } else {
+    st.textContent = (data && data.error) || 'Could not queue draft';
+  }
+}
+
+/* ===== Social media approval queue (business-only browser profile) ===== */
+async function loadSocial() {
+  const el = document.getElementById('socialPanel');
+  if (!el) return;
+  const { ok, data } = await apiFetch('/api/social');
+  if (!ok) { el.textContent = 'Could not read social queue.'; return; }
+  const platforms = data.platforms || {};
+  const q = (data.queue || []).slice().reverse();
+  const loginBtns = Object.keys(platforms).map(k =>
+    `<button class="chip" onclick="socialLogin('${esc(k)}')">Log in: ${esc(platforms[k])}</button>`).join('');
+  const rows = q.length ? q.map(it => {
+    const pending = it.status === 'pending_approval';
+    const dot = it.status === 'posted' ? 'confirmed' : (it.status === 'failed' ? 'problem' : (pending ? 'working' : 'late'));
+    return `<div class="list-item" style="flex-direction:column;align-items:stretch">
+      <div class="mono"><span class="status-pill"><span class="dot ${dot}" aria-hidden="true"></span>${esc(it.platform)} · ${esc(it.status.replace(/_/g, ' '))} · ${esc(it.by || '')}</span></div>
+      <div style="margin:6px 0;white-space:pre-wrap">${esc(it.text)}</div>
+      ${it.note ? `<div class="mono" style="color:var(--ng-amber)">${esc(it.note)}</div>` : ''}
+      ${pending ? `<div class="row" style="margin-top:6px"><button class="btn sm" onclick="socialDecision('${esc(it.id)}','approve')">Approve &amp; post</button><button class="btn secondary sm" onclick="socialDecision('${esc(it.id)}','reject')">Reject</button></div>` : ''}
+    </div>`;
+  }).join('') : '<div style="color:var(--ng-text-2)">No drafts yet. Ask Marketing to write a post, then press "Queue as X post" under its reply.</div>';
+  el.innerHTML = `
+    <div class="mono">Business-only browser profile: ${esc(data.profile_dir)}</div>
+    <div class="row" style="gap:6px">${loginBtns}</div>
+    <div class="mono" style="margin-top:8px">Your personal accounts are never used. Log in once per platform in the window that opens, then close it.</div>
+    <div class="row" style="margin-top:10px">
+      <span class="mono">Autopost without approval:</span>
+      <button class="ng-switch" role="switch" aria-checked="${data.settings.autopost ? 'true' : 'false'}" aria-label="Autopost" onclick="toggleAutopost(${data.settings.autopost ? 'false' : 'true'})"><span class="ng-switch-knob"></span></button>
+      <span class="mono">${data.settings.autopost ? 'ON (risky)' : 'OFF (recommended)'}</span>
+    </div>
+    <textarea id="socialDraftText" placeholder="Write or paste a draft post (X max 280 chars)..." style="margin-top:10px"></textarea>
+    <div class="row"><button class="btn sm" onclick="socialAddDraft()">Add to queue</button><span id="socialMsg" class="mono"></span></div>
+    <div style="margin-top:12px">${rows}</div>`;
+}
+
+async function socialLogin(platform) {
+  const { ok, data } = await apiFetch('/api/social/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform })
+  });
+  const m = document.getElementById('socialMsg');
+  if (m) m.textContent = ok ? 'Opening Chrome (business profile)...' : ((data && data.error) || 'Could not open browser');
+}
+
+async function socialAddDraft() {
+  const t = (document.getElementById('socialDraftText') || {}).value || '';
+  const { ok, data } = await apiFetch('/api/social/draft', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ platform: 'x', text: t, by: 'Markus' })
+  });
+  if (ok) loadSocial(); else { const m = document.getElementById('socialMsg'); if (m) m.textContent = (data && data.error) || 'Problem'; }
+}
+
+async function socialDecision(id, action) {
+  await apiFetch('/api/social/' + encodeURIComponent(id) + '/' + action, { method: 'POST', body: '{}' });
+  setTimeout(loadSocial, 600);
+}
+
+async function toggleAutopost(on) {
+  if (on && !confirm('Autopost lets Marketing publish to your business accounts with NO approval step. Are you sure?')) return;
+  await apiFetch('/api/social/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ autopost: !!on })
+  });
+  loadSocial();
+}
+
+/* ===== Governance & Multi-Agent Consensus Deletions ===== */
+async function loadGovernanceProposals() {
+  const el = document.getElementById('governancePanel');
+  if (!el) return;
+  const { ok, data } = await apiFetch('/api/governance/proposals');
+  if (!ok) { el.textContent = 'Could not load governance proposals.'; return; }
+  const props = (data && data.proposals) || [];
+  if (!props.length) {
+    el.innerHTML = '<div style="color:var(--ng-text-2)">Zero pending deletion proposals. Your files and drives are 100% safe.</div>';
+    return;
+  }
+  el.innerHTML = props.slice().reverse().map(p => {
+    const isPending = p.status === 'pending_markus_approval';
+    const dot = isPending ? 'problem' : (p.status === 'executed' ? 'confirmed' : 'late');
+    const votes = Object.entries(p.bot_votes || {}).map(([b, v]) => `
+      <span class="status-pill" style="margin-right:6px"><span class="dot confirmed"></span>${esc(b)}: ${esc(v.decision)}</span>
+    `).join('');
+
+    return `
+      <div class="list-item" style="flex-direction:column;align-items:stretch;margin-bottom:8px">
+        <div class="row" style="justify-content:space-between">
+          <div class="mono"><span class="status-pill"><span class="dot ${dot}"></span>${esc(p.status.replace(/_/g, ' '))}</span> &middot; Proposed by <strong>${esc(p.proposer)}</strong></div>
+          <div class="mono tabular" style="color:var(--ng-text-3)">${esc(p.created_at_aest)}</div>
+        </div>
+        <div style="margin:6px 0">
+          <div><strong>Target:</strong> <code style="word-break:break-all">${esc(p.target)}</code> (${p.is_dir ? 'Directory' : 'File'})</div>
+          <div style="color:var(--ng-text-2);margin-top:2px"><strong>Reason:</strong> ${esc(p.reason || 'None provided')}</div>
+        </div>
+        <div class="row" style="margin:4px 0;flex-wrap:wrap">
+          <span class="mono" style="margin-right:6px">Bot Consensus:</span> ${votes}
+        </div>
+        ${p.execution_note ? `<div class="mono" style="color:var(--ng-mint);margin-top:4px">${esc(p.execution_note)}</div>` : ''}
+        ${isPending ? `
+          <div class="row" style="margin-top:8px;gap:8px">
+            <button class="btn sm" onclick="resolveGovernance('${esc(p.id)}', 'approve')">One-Click Approve &amp; Delete</button>
+            <button class="btn secondary sm" onclick="resolveGovernance('${esc(p.id)}', 'veto')">Veto / Keep File</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+async function resolveGovernance(propId, decision) {
+  const { ok, data } = await apiFetch('/api/governance/resolve/' + encodeURIComponent(propId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision })
+  });
+  loadGovernanceProposals();
+}
+
+/* ===== Marketing Free Image Generation Studio ===== */
+async function loadImages() {
+  const stEl = document.getElementById('imgEngineStatus');
+  const galEl = document.getElementById('imgGalleryRow');
+  if (!galEl) return;
+  const { ok, data } = await apiFetch('/api/images');
+  if (!ok) return;
+  if (stEl && data.status) {
+    const isLocalDiff = data.status.comfyui_available || data.status.sd_webui_available;
+    stEl.innerHTML = `<span class="dot ${isLocalDiff ? 'confirmed' : 'working'}"></span>${esc(data.status.active_backend)} &middot; ${esc(data.status.free_cost)}`;
+  }
+  const imgs = (data && data.images) || [];
+  if (!imgs.length) {
+    galEl.innerHTML = '<div style="color:var(--ng-text-2);grid-column:1/-1">No marketing images generated yet. Type a prompt above or ask Marketing in chat!</div>';
+    return;
+  }
+  galEl.innerHTML = imgs.slice().reverse().map(img => `
+    <div class="list-item" style="flex-direction:column;align-items:stretch;overflow:hidden">
+      <img src="${esc(img.url)}" alt="${esc(img.prompt)}" style="width:100%;height:140px;object-fit:cover;border-radius:8px;background:#0d0e12" onerror="this.src='/assets/DDG_Logo_New.png'">
+      <div style="margin-top:6px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(img.prompt)}</div>
+      <div class="row" style="justify-content:space-between;margin-top:4px">
+        <span class="mono" style="font-size:11px;color:var(--ng-text-3)">${esc(img.engine)}</span>
+        <a href="${esc(img.url)}" target="_blank" class="chip" style="font-size:11px">Open</a>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function generateMarketingImage() {
+  const inp = document.getElementById('imgGenPrompt');
+  const prompt = (inp ? inp.value : '').trim();
+  if (!prompt) return;
+  const stEl = document.getElementById('imgEngineStatus');
+  if (stEl) stEl.innerHTML = '<span class="dot working"></span>Generating image locally...';
+  inp.value = '';
+  const { ok, data } = await apiFetch('/api/images/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, bot_name: 'Marketing' })
+  });
+  loadImages();
+}
+
+/* ===== Desktop notifications ===== */
+let notifInit = false;
+const seenNotif = new Set();
+
+function enableAlerts() {
+  if (!('Notification' in window)) { document.getElementById('chatStatus').textContent = 'This browser has no desktop notifications.'; return; }
+  Notification.requestPermission().then(p => {
+    const b = document.getElementById('alertsBtn');
+    if (b) { b.textContent = p === 'granted' ? 'Alerts: On' : 'Alerts: Blocked'; b.classList.toggle('active-skill', p === 'granted'); }
+  });
+}
+
+function notifyUser(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body }); } catch (_) {}
+  }
+}
+
+async function pollNotifications() {
+  try {
+    const s = await apiFetch('/api/social');
+    if (s.ok) {
+      (s.data.queue || []).filter(q => q.status === 'pending_approval').forEach(q => {
+        const key = 'social:' + q.id;
+        if (notifInit && !seenNotif.has(key)) notifyUser('Marketing draft needs approval', (q.text || '').slice(0, 120));
+        seenNotif.add(key);
+      });
+    }
+    const j = await apiFetch('/api/jobs');
+    if (j.ok) {
+      (j.data.jobs || []).forEach(job => {
+        const key = 'job:' + job.job_id;
+        if (notifInit && !seenNotif.has(key)) {
+          notifyUser(job.preflight_passed ? 'Edit ready for review' : 'Edit needs attention', job.job_id);
+        }
+        seenNotif.add(key);
+      });
+    }
+    notifInit = true;
+  } catch (_) {}
+}
+
+function toggleVoiceInput() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('micBtn');
+  const statusEl = document.getElementById('chatStatus');
+  if (!SR) {
+    if (statusEl) statusEl.textContent = 'Voice input requires Chrome or Edge.';
+    return;
+  }
+  if (userWantsListening) {
+    userWantsListening = false;
+    voiceListening = false;
+    if (voiceRec) try { voiceRec.stop(); } catch(_) {}
+    if (btn) { btn.classList.remove('mic-listening'); btn.textContent = 'Mic'; }
+    if (statusEl) statusEl.textContent = 'Mic stopped.';
+    return;
+  }
+
+  userWantsListening = true;
+  initVoiceSession();
+}
+
+function initVoiceSession() {
+  if (!userWantsListening) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('micBtn');
+  const statusEl = document.getElementById('chatStatus');
+  const inp = document.getElementById('chatInput');
+
+  try {
+    voiceRec = new SR();
+    voiceRec.lang = 'en-AU';
+    voiceRec.interimResults = true;
+    voiceRec.continuous = true;
+    let baseText = (inp ? inp.value : '') + (inp && inp.value && !inp.value.endsWith(' ') ? ' ' : '');
+
+    voiceRec.onstart = () => {
+      voiceListening = true;
+      if (btn) { btn.classList.add('mic-listening'); btn.textContent = 'Listening...'; }
+      if (statusEl) statusEl.textContent = 'Listening continuously... (stops only when you click Mic or send)';
+    };
+
+    voiceRec.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) {
+          baseText += ev.results[i][0].transcript.trim() + ' ';
+        } else {
+          interim += ev.results[i][0].transcript;
+        }
+      }
+      if (inp) {
+        inp.value = (baseText + interim).trim();
+        autoGrowInput(inp);
+      }
+      if (handsFree) {
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          const el = document.getElementById('chatInput');
+          if (el && el.value.trim() && !chatBusy) sendChat();
+        }, 1900);
+      }
+    };
+
+    voiceRec.onerror = (ev) => {
+      if (ev.error === 'no-speech') {
+        // Natural pause: do nothing, let onend restart it seamlessly
+        return;
+      }
+      if (statusEl) statusEl.textContent = 'Mic notice: ' + ev.error;
+    };
+
+    voiceRec.onend = () => {
+      // Seamless keep-alive: if user didn't explicitly click Stop or Send, immediately restart listening
+      if (userWantsListening) {
+        setTimeout(() => {
+          if (userWantsListening) {
+            try { voiceRec.start(); } catch(_) { initVoiceSession(); }
+          }
+        }, 150);
+      } else {
+        voiceListening = false;
+        if (btn) { btn.classList.remove('mic-listening'); btn.textContent = 'Mic'; }
+      }
+    };
+
+    voiceRec.start();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = 'Mic error starting: ' + err.message;
+  }
+}
+
+function stopVoiceInput() {
+  clearTimeout(silenceTimer);
+  userWantsListening = false;
+  voiceListening = false;
+  if (voiceRec) {
+    try { voiceRec.stop(); } catch(_) {}
+  }
+  const btn = document.getElementById('micBtn');
+  if (btn) { btn.classList.remove('mic-listening'); btn.textContent = 'Mic'; }
+}
+
+async function loadRules() {
+  try {
+    const { ok, data } = await apiFetch('/api/rules');
+    if (!ok) return;
+    customRulesState = data || customRulesState;
+    renderRulesDrawer();
+  } catch (_) {}
+}
+
+function renderRulesDrawer() {
+  const gInp = document.getElementById('globalRulesInput');
+  const bInp = document.getElementById('botRulesInput');
+  const bLbl = document.getElementById('botRuleLabel');
+  const row = document.getElementById('skillChipsRow');
+  const uplList = document.getElementById('uploadedSkillsList');
+  const cntBadge = document.getElementById('skillCountBadge');
+  if (gInp) gInp.value = customRulesState.global_rules || '';
+  if (bLbl) bLbl.textContent = `Rules for ${activeBotName}`;
+  if (bInp) bInp.value = (customRulesState.bot_rules && customRulesState.bot_rules[activeBotName]) || '';
+  const active = new Set(customRulesState.active_skills || []);
+  if (row) {
+    row.innerHTML = BUILTIN_SKILLS.map(sk =>
+      `<button class="chip ${active.has(sk) ? 'active-skill' : ''}" onclick="toggleSkillChip('${esc(sk)}')">${esc(sk)}</button>`
+    ).join('');
+  }
+  const list = customRulesState.uploaded_skills || [];
+  if (cntBadge) cntBadge.textContent = String(list.length);
+  if (uplList) {
+    if (!list.length) {
+      uplList.innerHTML = '<span class="mono" style="color:var(--ng-text-3)">No custom skills added yet. Use the form below or drop a .md file.</span>';
+    } else {
+      uplList.innerHTML = list.map(item => `
+        <div class="list-item" style="padding:6px 10px;gap:8px;background:rgba(255,255,255,0.04);border-radius:10px">
+          <span style="cursor:pointer;font-weight:500;font-size:13px" onclick="editSkillItem('${esc(item.name).replace(/'/g, "\\'")}')" title="Click to edit">
+            📄 ${esc(item.name.replace(/\.md$/i, ''))}
+          </span>
+          <div class="row" style="gap:4px">
+            <button class="chip" style="font-size:10px;padding:2px 6px" onclick="editSkillItem('${esc(item.name).replace(/'/g, "\\'")}')">Edit</button>
+            <button class="chip" style="font-size:10px;padding:2px 6px;color:var(--ng-amber)" onclick="deleteSkillFile('${esc(item.name).replace(/'/g, "\\'")}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+  loadComputerScope();
+}
+
+function editSkillItem(filename) {
+  const list = customRulesState.uploaded_skills || [];
+  const item = list.find(s => s.name === filename);
+  if (!item) return;
+  document.getElementById('skillNameInput').value = item.name.replace(/\.md$/i, '');
+  document.getElementById('skillContentInput').value = item.content || '';
+  document.getElementById('skillEditorTitle').textContent = '✏️ Editing Skill: ' + item.name;
+  document.getElementById('skillContentInput').focus();
+}
+
+function clearSkillEditor() {
+  document.getElementById('skillNameInput').value = '';
+  document.getElementById('skillContentInput').value = '';
+  document.getElementById('skillEditorTitle').textContent = '+ Add New Skill or Edit Existing';
+}
+
+async function saveActiveSkill() {
+  const nameInp = document.getElementById('skillNameInput');
+  const contentInp = document.getElementById('skillContentInput');
+  let name = (nameInp ? nameInp.value : '').trim();
+  const content = (contentInp ? contentInp.value : '').trim();
+  if (!name) { alert('Please enter a skill name'); return; }
+  if (!content) { alert('Please enter instructions for the skill'); return; }
+  if (!name.toLowerCase().endsWith('.md')) name += '.md';
+
+  const { ok, data } = await apiFetch('/api/rules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ upload_file_name: name, upload_file_content: content })
+  });
+  if (ok) {
+    customRulesState = data;
+    renderRulesDrawer();
+    clearSkillEditor();
+    document.getElementById('rulesStatus').innerHTML = renderTick('Skill saved to library');
+  }
+}
+
+async function loadComputerScope() {
+  try {
+    const { ok, data } = await apiFetch('/api/governance/permissions');
+    if (ok && data) {
+      const sel = document.getElementById('accessScopeSelect');
+      if (sel) sel.value = data.scope || 'unrestricted_user';
+    }
+  } catch(_) {}
+}
+
+async function updateComputerScope(scope) {
+  const st = document.getElementById('scopeSavedStatus');
+  if (st) st.textContent = 'Updating...';
+  const { ok, data } = await apiFetch('/api/governance/permissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scope })
+  });
+  if (ok) {
+    if (st) st.innerHTML = renderTick('Access granted');
+    setTimeout(() => { if (st) st.textContent = ''; }, 3000);
+  }
+}
+
+async function handleSkillFileUpload(files) {
+  if (!files || !files.length) return;
+  const statusEl = document.getElementById('rulesStatus');
+  for (const f of files) {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const content = e.target.result;
+      if (statusEl) statusEl.textContent = `Uploading ${f.name}...`;
+      const { ok, data } = await apiFetch('/api/rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upload_file_name: f.name, upload_file_content: content })
+      });
+      if (ok) {
+        customRulesState = data;
+        renderRulesDrawer();
+        if (statusEl) statusEl.innerHTML = renderTick('Added ' + f.name);
+      }
+    };
+    reader.readAsText(f);
+  }
+}
+
+async function deleteSkillFile(filename) {
+  if (!confirm(`Remove skill file "${filename}"?`)) return;
+  const { ok, data } = await apiFetch('/api/rules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ delete_skill: filename })
+  });
+  if (ok) {
+    customRulesState = data;
+    renderRulesDrawer();
+  }
+}
+
+function initDropZone() {
+  const dz = document.getElementById('dropZone');
+  if (dz) {
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dz.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--ng-ice)'; });
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dz.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = 'var(--ng-edge)'; });
+    });
+    dz.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      handleSkillFileUpload(files);
+    });
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDropZone);
+} else {
+  initDropZone();
+}
+
+function toggleSkillChip(skill) {
+  const cur = new Set(customRulesState.active_skills || []);
+  if (cur.has(skill)) cur.delete(skill); else cur.add(skill);
+  customRulesState.active_skills = Array.from(cur);
+  renderRulesDrawer();
+}
+
+function toggleRulesDrawer() {
+  const d = document.getElementById('rulesDrawer');
+  if (!d) return;
+  d.classList.toggle('hidden');
+  if (!d.classList.contains('hidden')) loadRules();
+}
+
+async function saveRules() {
+  const global_rules = (document.getElementById('globalRulesInput') || {}).value || '';
+  const bot_rule = (document.getElementById('botRulesInput') || {}).value || '';
+  const { ok, data } = await apiFetch('/api/rules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      global_rules,
+      active_skills: customRulesState.active_skills || [],
+      bot_name: activeBotName,
+      bot_rule
+    })
+  });
+  if (ok) {
+    customRulesState = data;
+    document.getElementById('rulesStatus').innerHTML = renderTick('Saved');
+  } else {
+    document.getElementById('rulesStatus').textContent = 'Problem saving rules';
+  }
+}
+
+function toggleCot(id) {
+  const el = document.querySelector(`#${id} .cot-content`);
+  if (el) el.classList.toggle('collapsed');
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+}
+
+async function refreshLlmBadge() {
+  try {
+    const { data } = await apiFetch('/api/system');
+    const dot = document.getElementById('llmDot');
+    const badge = document.getElementById('llmBadge');
+    const startBtn = document.getElementById('startLlmBtn');
+    if (!dot || !badge) return;
+    if (data.ollama_online) {
+      dot.className = 'dot confirmed';
+      badge.textContent = 'qwen3:8b · Online (A$0)';
+      if (startBtn) startBtn.classList.add('hidden');
+    } else {
+      dot.className = 'dot late';
+      badge.textContent = 'Local LLM Offline';
+      if (startBtn) startBtn.classList.remove('hidden');
+    }
+  } catch (_) {}
+}
+
+async function startLocalLlm() {
+  const btn = document.getElementById('startLlmBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Starting Ollama...';
+  }
+  try {
+    const { ok, data } = await apiFetch('/api/ollama/start', { method: 'POST', body: '{}' });
+    if (btn) {
+      btn.textContent = ok ? 'Launched!' : 'Error';
+      setTimeout(() => {
+        btn.disabled = false;
+        refreshLlmBadge();
+      }, 3000);
+    }
+  } catch (_) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Retry Start'; }
+  }
+}
+
+async function refreshDiffusionStatus() {
+  try {
+    const { ok, data } = await apiFetch('/api/diffusion/status');
+    const badge = document.getElementById('imgEngineStatus');
+    const details = document.getElementById('diffusionDetails');
+    if (!badge) return;
+    if (ok && data) {
+      const active = data.active_backend || 'Night Glass (A$0)';
+      const comfy = data.comfyui_available ? 'ComfyUI 8188: Online' : 'ComfyUI: Offline';
+      const webui = data.sd_webui_available ? 'SD-WebUI 7860: Online' : 'SD-WebUI: Offline';
+      badge.innerHTML = `<span class="dot ${data.comfyui_available || data.sd_webui_available ? 'confirmed' : 'late'}" aria-hidden="true"></span>Active: ${esc(active)}`;
+      if (details) {
+        details.innerHTML = `Connected Backends: <strong>${comfy}</strong> | <strong>${webui}</strong> | Fallback: <strong>Night Glass Neural Canvas (A$0)</strong>`;
+      }
+    }
+  } catch (_) {}
+}
+
+async function refreshDaemonsStatus() {
+  try {
+    const [wRes, sRes] = await Promise.all([
+      apiFetch('/api/inbox/watcher_status'),
+      apiFetch('/api/scheduler/status')
+    ]);
+    const wBadge = document.getElementById('watcherBadge');
+    const wScan = document.getElementById('watcherLastScan');
+    if (wRes.ok && wRes.data) {
+      if (wBadge) wBadge.innerHTML = `<span class="dot confirmed" aria-hidden="true"></span>Active (6s polling)`;
+      if (wScan) wScan.textContent = `Last active check: ${wRes.data.last_checked || 'Now'} · Processed jobs: ${wRes.data.processed_count}`;
+    }
+    const sBadge = document.getElementById('schedulerBadge');
+    const sStatus = document.getElementById('schedulerStatusText');
+    if (sRes.ok && sRes.data) {
+      if (sBadge) sBadge.innerHTML = `<span class="dot confirmed" aria-hidden="true"></span>Scheduled (AEST UTC+10)`;
+      if (sStatus) sStatus.textContent = `Brisbane AEST · Last 7:00am brief: ${sRes.data.last_7am_date || 'Pending next 7:00am run'} · Last Monday review: ${sRes.data.last_monday_date || 'Pending next 9:00am Monday'}`;
+    }
+  } catch (_) {}
+}
+
+async function scanInboxNow() {
+  const { ok, data } = await apiFetch('/api/inbox/scan_now', { method: 'POST', body: '{}' });
+  if (ok) {
+    alert(data.processed && data.processed.length ? `Scanned & processed ${data.processed.length} new video drop(s)!` : 'Inbox scanned: No pending un-archived video files found.');
+    loadJobs();
+  }
+}
+
+async function triggerBriefNow() {
+  const { ok } = await apiFetch('/api/heimdall/brief/trigger', { method: 'POST', body: '{}' });
+  if (ok) {
+    alert('Heimdall 7:00am Brief compiled, posted to chat history, and sent as Windows desktop notification!');
+    loadBots();
+  }
+}
+
+async function loadBots() {
+  try {
+    const { ok, data } = await apiFetch('/api/bots');
+    if (!ok || !data) return;
+    lastBotsCache = data.bots || [];
+    lastGroupsCache = data.groups || [];
+    const active = !data.paused;
+    const pauseSw = document.getElementById('pauseSwitch');
+    if (pauseSw) pauseSw.setAttribute('aria-checked', active ? 'true' : 'false');
+    const dot = document.getElementById('liveDot');
+    if (dot) dot.className = active ? 'dot working live' : 'dot late';
+    const ws = document.getElementById('watcherStatus');
+    if (ws) ws.textContent = active ? 'Studio ready' : 'Studio paused';
+
+    const roster = document.getElementById('botRoster');
+    if (roster) {
+      roster.className = 'roster-scroll';
+      const activeBots = lastBotsCache.filter(b => b.active);
+      const pausedBots = lastBotsCache.filter(b => !b.active);
+      const renderBotCard = b => {
+        const isSelected = !activeGroupId && b.name === activeBotName;
+        const statusCls = b.active ? 'confirmed' : 'nodata';
+        const statusTxt = b.active ? 'Active' : 'Paused';
+        const dname = b.display_name || b.name;
+        return `<div class="list-item ${isSelected ? 'active' : ''}">
+          <button class="list-item-btn" onclick="selectBot('${esc(b.name)}')" style="display:flex;align-items:center;gap:10px">
+            <span class="bot-avatar sm" aria-hidden="true">${botSpriteSvg(b.name, 26)}</span>
+            <span style="min-width:0">
+              <div style="font-weight:600;font-size:14.5px">${esc(dname)}</div>
+              <div class="mono" style="margin-top:2px"><span class="status-pill"><span class="dot ${statusCls}" aria-hidden="true"></span>${statusTxt} · ${esc(b.title)}</span></div>
+            </span>
+          </button>
+          <button class="ng-switch" role="switch" aria-checked="${b.active ? 'true' : 'false'}" aria-label="Toggle ${esc(dname)}" onclick="toggleBot('${esc(b.name)}', this)">
+            <span class="ng-switch-knob"></span>
+          </button>
+        </div>`;
+      };
+      let html = '';
+      html += `<div class="roster-section-label mono"><span>Group Chats (${lastGroupsCache.length})</span><button class="chip" style="padding:2px 8px;font-size:11px" onclick="createGroupChat()">+ New</button></div>`;
+      html += lastGroupsCache.map(g => {
+        const isSel = activeGroupId === g.id;
+        return `<div class="list-item ${isSel ? 'active' : ''}">
+          <button class="list-item-btn" onclick="selectGroup('${esc(g.id)}')" style="display:flex;align-items:center;gap:10px">
+            <span class="bot-avatar sm" aria-hidden="true">${botSpriteSvg('group', 26)}</span>
+            <span style="min-width:0">
+              <div style="font-weight:600;font-size:14.5px">${esc(g.name)}</div>
+              <div class="mono" style="margin-top:2px">${esc((g.members || []).join(' · '))}</div>
+            </span>
+          </button>
+        </div>`;
+      }).join('');
+      if (activeBots.length) {
+        html += `<div class="roster-section-label mono"><span>Active Team (${activeBots.length})</span></div>` + activeBots.map(renderBotCard).join('');
+      }
+      if (pausedBots.length) {
+        html += `<div class="roster-section-label mono"><span>Paused Bench (${pausedBots.length})</span></div>` + pausedBots.map(renderBotCard).join('');
+      }
+      roster.innerHTML = html;
+    }
+
+    if (activeGroupId) {
+      const grp = lastGroupsCache.find(g => g.id === activeGroupId);
+      if (grp) { renderSelectedGroup(grp); return; }
+      activeGroupId = null;
+    }
+    const cur = lastBotsCache.find(b => b.name === activeBotName) || lastBotsCache[0];
+    if (cur) renderSelectedBot(cur);
+  } catch (err) {
+    console.error('loadBots error:', err);
+  }
+}
+
+function selectBot(name) {
+  activeGroupId = null;
+  activeBotName = name;
+  const cur = lastBotsCache.find(b => b.name === activeBotName);
+  if (cur) renderSelectedBot(cur);
+  loadBots();
+  const inp = document.getElementById('chatInput');
+  if (inp) inp.focus();
+}
+
+function selectGroup(gid) {
+  activeGroupId = gid;
+  const grp = lastGroupsCache.find(g => g.id === activeGroupId);
+  if (grp) renderSelectedGroup(grp);
+  loadBots();
+  const inp = document.getElementById('chatInput');
+  if (inp) inp.focus();
+}
+
+async function clearCurrentChat() {
+  if (!confirm('Clear chat history for ' + activeBotName + '?')) return;
+  const { ok } = await apiFetch('/api/bots/' + encodeURIComponent(activeBotName) + '/clear', { method: 'POST', body: '{}' });
+  if (ok) {
+    loadBots();
+    document.getElementById('chatStatus').innerHTML = renderTick('Chat cleared. Bot restarted fresh with current permissions.');
+  }
+}
+
+async function renameActiveBot() {
+  if (activeGroupId) return;
+  const cur = lastBotsCache.find(b => b.name === activeBotName);
+  const currentDisplay = (cur && cur.display_name) || activeBotName;
+  const nextName = window.prompt('Rename bot "' + currentDisplay + '" to:', currentDisplay);
+  if (!nextName || !nextName.trim()) return;
+  const { ok, data } = await apiFetch('/api/bots/' + encodeURIComponent(activeBotName) + '/rename', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ display_name: nextName.trim() })
+  });
+  if (ok) {
+    document.getElementById('chatStatus').innerHTML = renderTick('Renamed to ' + data.display_name);
+    loadBots();
+  }
+}
+
+async function createGroupChat() {
+  const gname = window.prompt('Group chat name:', 'DDG Content Crew');
+  if (!gname || !gname.trim()) return;
+  const defaultMembers = lastBotsCache.filter(b => b.active).map(b => b.name).join(', ');
+  const rawMembers = window.prompt('Bots in this group (comma-separated):', defaultMembers || 'Heimdall, Marketing, Tyr');
+  if (!rawMembers) return;
+  const members = rawMembers.split(',').map(s => s.trim()).filter(Boolean);
+  const { ok, data } = await apiFetch('/api/groups', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: gname.trim(), members })
+  });
+  if (ok && data.group) {
+    activeGroupId = data.group.id;
+    loadBots();
+  } else {
+    document.getElementById('chatStatus').textContent = (data && data.error) || 'Could not create group';
+  }
+}
+
+function renderChatMessage(rawText) {
+  if (!rawText) return '';
+  let s = esc(rawText);
+  // Replace markdown images: ![alt](url)
+  s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+    return `<div class="chat-image-preview" style="margin-top:10px;margin-bottom:6px">
+      <img src="${url}" alt="${alt}" style="max-width:100%;max-height:380px;border-radius:10px;border:1px solid rgba(61,220,151,0.3);box-shadow:0 8px 24px rgba(0,0,0,0.6);display:block;cursor:pointer" onclick="window.open('${url}','_blank')">
+      <div class="row" style="margin-top:6px;gap:8px">
+        <a href="${url}" target="_blank" class="chip" style="font-size:11px">🔍 Open Full-Res Image</a>
+        <span class="mono" style="font-size:11px;color:var(--ng-mint)">${alt || 'Rendered Image'}</span>
+      </div>
+    </div>`;
+  });
+  // Replace bold: **text**
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  // Replace inline code: `code`
+  s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;color:var(--ng-mint)">$1</code>');
+  // Replace newlines with <br>
+  s = s.replace(/\n/g, '<br>');
+  return s;
+}
+
+function renderSelectedGroup(grp) {
+  document.getElementById('selectedBotAvatar').innerHTML = botSpriteSvg('group', 30);
+  document.getElementById('selectedBotZone').textContent = `Group Chat · ${(grp.members || []).join(', ')}`;
+  document.getElementById('selectedBotName').textContent = grp.name;
+  const rBtn = document.getElementById('renameBotBtn');
+  if (rBtn) rBtn.classList.add('hidden');
+  const inp = document.getElementById('chatInput');
+  if (inp) inp.placeholder = `Message ${grp.name}... (use @BotName to address one bot, or message everyone)`;
+  const qpRow = document.getElementById('quickPromptsRow');
+  if (qpRow) {
+    qpRow.innerHTML = [
+      ["Team Standup", "Quick team standup: what is each of you focused on today?"],
+      ["Video Launch Plan", "Let's plan our next DDG YouTube video + X post together."],
+      ["@Marketing Check", "@Marketing give me a quick status on our video pipeline."]
+    ].map(([label, text]) =>
+      `<button class="chip" onclick="sendQuickPrompt('${esc(text).replace(/'/g, "\\'")}')">${esc(label)}</button>`
+    ).join('');
+  }
+  const logEl = document.getElementById('chatLog');
+  const msgs = grp.history || [];
+  if (!msgs.length) {
+    logEl.innerHTML = `
+      <div class="chat-empty">
+        <div class="chat-empty-title">${esc(grp.name)}</div>
+        <div class="chat-empty-sub">Chat with ${esc((grp.members || []).join(', '))} together in one thread. Use @Name to address one bot, or message everyone at once.</div>
+        <div class="mono">100% Local · Zero Cloud Cost · A$0</div>
+      </div>
+    `;
+  } else {
+    logEl.innerHTML = msgs.map(m => {
+      const isUser = String(m.sender || '').toLowerCase() === 'markus';
+      return `
+        <div class="chat-bubble-row ${isUser ? 'user' : 'bot'}">
+          <div class="chat-bubble">${renderChatMessage(m.text)}</div>
+          <div class="chat-meta">${esc(m.sender)} · ${esc(m.timestamp_aest || '')}${m.source ? ' · ' + esc(m.source) : ''}${!isUser ? `<button class="speak-btn" onclick="speakText(this.parentElement.previousElementSibling.textContent)">Speak</button>` : ''}</div>
+        </div>
+      `;
+    }).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+function renderSelectedBot(bot) {
+  const dname = bot.display_name || bot.name;
+  document.getElementById('selectedBotAvatar').innerHTML = botSpriteSvg(bot.name, 30);
+  document.getElementById('selectedBotZone').textContent = `${bot.zone} · ${bot.active ? 'Active' : 'Paused'}`;
+  document.getElementById('selectedBotName').textContent = `${dname} — ${bot.title}`;
+  const rBtn = document.getElementById('renameBotBtn');
+  if (rBtn) rBtn.classList.remove('hidden');
+  const inp = document.getElementById('chatInput');
+  if (inp) inp.placeholder = `Message ${dname}... (Enter to send, Shift+Enter for new line)`;
+
+  const prompts = BOT_QUICK_PROMPTS[bot.name] || [
+    ["Status Check", `Give me a quick status update as ${dname}.`],
+    ["Check Boundaries", "Remind me of your exact hard rules and boundaries."]
+  ];
+  const qpRow = document.getElementById('quickPromptsRow');
+  if (qpRow) {
+    qpRow.innerHTML = prompts.map(([label, text]) =>
+      `<button class="chip" onclick="sendQuickPrompt('${esc(text).replace(/'/g, "\\'")}')">${esc(label)}</button>`
+    ).join('');
+  }
+
+  const logEl = document.getElementById('chatLog');
+  const msgs = bot.history || [];
+  if (!msgs.length) {
+    logEl.innerHTML = `
+      <div class="chat-empty">
+        <div class="chat-empty-title">Chat with ${esc(dname)}</div>
+        <div class="chat-empty-sub">${esc(bot.summary)}</div>
+        <div class="mono">100% Local · Zero Cloud Cost · A$0</div>
+      </div>
+    `;
+  } else {
+    logEl.innerHTML = msgs.map(m => {
+      const isUser = String(m.sender || '').toLowerCase() === 'markus';
+      return `
+        <div class="chat-bubble-row ${isUser ? 'user' : 'bot'}">
+          <div class="chat-bubble">${renderChatMessage(m.text)}</div>
+          <div class="chat-meta">${esc(m.sender)} · ${esc(m.timestamp_aest || '')}${m.source ? ' · ' + esc(m.source) : ''}${!isUser ? `<button class="speak-btn" onclick="speakText(this.parentElement.previousElementSibling.textContent)">Speak</button>` : ''}</div>
+        </div>
+      `;
+    }).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+async function toggleBot(name, swEl) {
+  swEl.classList.add('stretching');
+  await apiFetch('/api/bots/' + encodeURIComponent(name) + '/toggle', { method: 'POST', body: '{}' });
+  setTimeout(() => swEl.classList.remove('stretching'), durMs('--ng-dur-quick'));
+  loadBots();
+}
+
+function sendQuickPrompt(text) {
+  const inp = document.getElementById('chatInput');
+  inp.value = text;
+  autoGrowInput(inp);
+  sendChat();
+}
+
+async function sendChat() {
+  stopVoiceInput();
+  stopSpeaking();
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  if (chatBusy) return;
+  chatBusy = true;
+  const btn = document.getElementById('chatSendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ng-bars" aria-hidden="true"><span></span><span></span><span></span></span>Thinking';
+  input.value = '';
+  autoGrowInput(input);
+
+  const logEl = document.getElementById('chatLog');
+  if (logEl.querySelector('.chat-empty')) logEl.innerHTML = '';
+  const isGroup = !!activeGroupId;
+  const targetLabel = isGroup ? 'Team' : activeBotName;
+  logEl.insertAdjacentHTML('beforeend', `
+    <div class="chat-bubble-row user">
+      <div class="chat-bubble">${esc(msg)}</div>
+      <div class="chat-meta">Markus · Just now</div>
+    </div>
+    <div id="typingBubble" class="chat-bubble-row bot">
+      <div class="chat-bubble"><span class="ng-loader"><span class="ng-revolve" aria-hidden="true"></span>${esc(targetLabel)} is thinking...</span></div>
+    </div>
+  `);
+  logEl.scrollTop = logEl.scrollHeight;
+
+  const endpoint = isGroup
+    ? '/api/groups/' + encodeURIComponent(activeGroupId) + '/chat'
+    : '/api/bots/' + encodeURIComponent(activeBotName) + '/chat';
+
+  let safetyTimeout = setTimeout(() => {
+    if (chatBusy) {
+      console.warn('sendChat safety watchdog triggered after 45s');
+      finish();
+    }
+  }, 45000);
+
+  const finish = () => {
+    if (safetyTimeout) { clearTimeout(safetyTimeout); safetyTimeout = null; }
+    chatBusy = false;
+    btn.disabled = false;
+    btn.textContent = 'Send';
+    const tb = document.getElementById('typingBubble');
+    if (tb) tb.remove();
+  };
+
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, stream: true })
+    });
+    const ctype = resp.headers.get('content-type') || '';
+
+    if (ctype.includes('text/event-stream')) {
+      // Live token stream (single bot or group: one bubble per bot)
+      const bubbles = {};  // bot_id -> {bubble, meta, text}
+      let source = 'ollama';
+      const spokenQueue = [];
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      const ensureBubble = (botId, label) => {
+        const key = botId || '_single';
+        if (bubbles[key]) return bubbles[key];
+        const tb = document.getElementById('typingBubble');
+        if (tb) tb.remove();
+        const rowId = 'botMsg_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+        logEl.insertAdjacentHTML('beforeend', `
+          <div id="${rowId}" class="chat-bubble-row bot">
+            <div class="cot-block hidden" id="${rowId}_cot">
+              <div class="cot-header" onclick="toggleCot('${rowId}_cot')">
+                <span>💭 Thought Process (Live Chain-of-Thought)</span>
+                <span class="mono" style="font-size:10px">[Collapse/Expand]</span>
+              </div>
+              <div class="cot-content"></div>
+            </div>
+            <div class="chat-bubble"></div>
+            <div class="chat-meta">${esc(label || activeBotName)} · Typing...</div>
+          </div>`);
+        bubbles[key] = {
+          bubble: document.querySelector(`#${rowId} .chat-bubble`),
+          cotBlock: document.getElementById(`${rowId}_cot`),
+          cotContent: document.querySelector(`#${rowId}_cot .cot-content`),
+          meta: document.querySelector(`#${rowId} .chat-meta`),
+          text: '',
+          thought: '',
+          label: label || activeBotName
+        };
+        return bubbles[key];
+      };
+      const handle = (ev) => {
+        if (ev.start) { ensureBubble(ev.bot_id, ev.bot); return; }
+        if (ev.thought !== undefined) {
+          const b = ensureBubble(ev.bot_id, ev.bot);
+          b.thought += (b.thought ? '\n' : '') + ev.thought;
+          b.cotContent.textContent = b.thought;
+          b.cotBlock.classList.remove('hidden');
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        if (ev.progress !== undefined) {
+          const b = ensureBubble(ev.bot_id, ev.bot);
+          b.bubble.innerHTML = `
+            <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;min-width:280px">
+              <div style="font-weight:600;display:flex;align-items:center;gap:8px;font-size:13.5px">
+                <span class="ng-revolve" aria-hidden="true" style="border-top-color:var(--ng-mint)"></span>
+                <span>${esc(ev.thought || 'Generating Local Artwork...')}</span>
+              </div>
+              <div style="width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
+                <div style="width:${ev.progress}%;height:100%;background:linear-gradient(90deg, #6cc7f0, #3ddc97);transition:width 0.3s ease"></div>
+              </div>
+              <div class="row" style="justify-content:space-between">
+                <span class="mono" style="font-size:11px;color:var(--ng-mint)">Rendering Stage: ${ev.progress}%</span>
+                <span class="mono" style="font-size:11px;color:var(--ng-text-3)">100% Free · A$0</span>
+              </div>
+            </div>`;
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+        if (ev.token !== undefined) {
+          const b = ensureBubble(ev.bot_id, ev.bot);
+          b.text += ev.token;
+          b.bubble.innerHTML = renderChatMessage(b.text);
+          logEl.scrollTop = logEl.scrollHeight;
+          if (ev.source) source = ev.source;
+        }
+        if (ev.end) {
+          const b = ensureBubble(ev.bot_id, ev.bot);
+          if (ev.source) source = ev.source;
+          b.meta.innerHTML = `${esc(b.label)} · Just now · ${esc(ev.source || source)}${actionButtonsHtml()}`;
+          if (autoTtsEnabled && b.text) spokenQueue.push(isGroup ? `${b.label} says: ${b.text}` : b.text);
+        }
+      };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, idx).trim();
+          buf = buf.slice(idx + 2);
+          if (!block.startsWith('data:')) continue;
+          const payload = block.slice(5).trim();
+          if (payload === '[DONE]') continue;
+          try { handle(JSON.parse(payload)); } catch (_) {}
+        }
+      }
+      // Single-bot streams have no explicit "end" event: finalise the bubble.
+      if (!isGroup) {
+        const b = bubbles['_single'];
+        if (b) {
+          b.meta.innerHTML = `${esc(b.label)} · Just now · ${esc(source)}${actionButtonsHtml()}`;
+          if (autoTtsEnabled && b.text) spokenQueue.push(b.text);
+        }
+      }
+      finish();
+      document.getElementById('chatStatus').innerHTML = renderTick('Replied via ' + source);
+      spokenQueue.forEach(t => speakText(t, true));
+      loadBots();
+      return;
+    }
+
+    // Non-streamed JSON (offline fallback or error)
+    const data = await resp.json();
+    finish();
+    if (resp.ok) {
+      const src = isGroup ? ((data.replies && data.replies[0] && data.replies[0].source) || 'local') : (data.reply_source || 'local');
+      document.getElementById('chatStatus').innerHTML = renderTick('Replied via ' + src);
+      if (autoTtsEnabled) {
+        if (isGroup) (data.replies || []).forEach(r => speakText(`${r.sender} says: ${r.text}`, true));
+        else if (data.reply) speakText(data.reply);
+      }
+      loadBots();
+    } else {
+      let errTxt = 'Problem sending message';
+      try {
+        const data = await resp.json();
+        errTxt = (data && data.error) || errTxt;
+      } catch (_) {}
+      document.getElementById('chatStatus').textContent = errTxt;
+    }
+  } catch (err) {
+    document.getElementById('chatStatus').textContent = 'Connection problem: is the studio server running?';
+  } finally {
+    finish();
+  }
+}
+
+async function loadInbox() {
+  const { data } = await apiFetch('/api/inbox');
+  const el = document.getElementById('inboxList');
+  el.className = '';
+  const files = data.files || [];
+  const runs = data.runs || [];
+  let html = '';
+  if (!files.length) {
+    html += '<div style="color:var(--ng-text-2)">Drop 1080p60 MP4/MKV footage into <code>F:\\DDG_Video_Studio\\01_Raw_Inbox\\</code>.</div>';
+  } else {
+    html += files.map(f => `
+      <div class="list-item" style="flex-direction:column;align-items:stretch">
+        <div style="font-weight:600">${esc(f.rel_path)}</div>
+        <div class="mono tabular">${esc(f.size_mb)} MB</div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn sm" onclick="triggerProcess('${esc(f.rel_path)}', 'preview')">Run Preview</button>
+          <button class="btn secondary sm" onclick="triggerProcess('${esc(f.rel_path)}', 'full')">Full 1080p60</button>
+          <button class="btn secondary sm" onclick="triggerProcess('${esc(f.rel_path)}', 'shorts')">Make Short</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  if (runs.length) {
+    html += '<div class="mono" style="margin-top:10px">Recent Triggers</div>' + runs.map(r => `
+      <div class="mono" style="margin-top:6px"><span class="status-pill"><span class="dot ${r.status==='error'?'problem':(r.status==='done'?'confirmed':'working')}" aria-hidden="true"></span>${esc(r.file)} (${esc(r.mode)}): ${esc(r.status)}</span></div>
+    `).join('');
+  }
+  el.innerHTML = html;
+}
+
+async function triggerProcess(relPath, mode) {
+  await apiFetch('/api/inbox/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file: relPath, mode })
+  });
+  loadInbox();
+}
+
+async function checkOpusCredits() {
+  const mins = parseFloat(document.getElementById('opusMin').value || '0');
+  const { data } = await apiFetch('/api/opusclip/check', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_minutes: mins })
+  });
+  const dotCls = data.requires_markus_approval ? 'problem' : 'confirmed';
+  document.getElementById('opusResult').innerHTML = `<span class="status-pill"><span class="dot ${dotCls}" aria-hidden="true"></span>${esc(data.message)}</span>`;
+}
+
+async function loadJobs() {
+  const { data } = await apiFetch('/api/jobs');
+  const el = document.getElementById('jobsList');
+  el.className = '';
+  if (!data.jobs.length) {
+    el.innerHTML = '<div style="color:var(--ng-text-2)">Nothing recorded yet.</div>';
+    return;
+  }
+  el.innerHTML = data.jobs.map(j => {
+    const dotCls = j.preflight_passed ? 'confirmed' : 'problem';
+    const label = j.preflight_passed ? 'Confirmed' : 'Problem';
+    return `<div class="list-item ${j.job_id===activeJobId?'active':''}">
+      <button class="list-item-btn" onclick="selectJob('${esc(j.job_id)}')">
+        <div style="font-weight:600;font-size:15px">${esc(j.job_id)}</div>
+        <div class="mono" style="margin-top:4px"><span class="status-pill"><span class="dot ${dotCls}" aria-hidden="true"></span>${label} · ${esc(j.mode)}</span></div>
+      </button>
+    </div>`;
+  }).join('');
+  if (!activeJobId && data.jobs.length) selectJob(data.jobs[0].job_id);
+}
+
+async function selectJob(id) {
+  activeJobId = id;
+  const { data } = await apiFetch('/api/jobs/' + encodeURIComponent(id));
+  const gates = (data.preflight && data.preflight.gates) || [];
+  const files = data.manifest.rendered_files || {};
+  const videoKey = Object.keys(files).find(k => !k.endsWith('_sha256'));
+  const videoRel = videoKey ? files[videoKey].split(/[\\\\/]/).pop() : null;
+  const copy = data.manifest.social_copy || {};
+  document.getElementById('detailPane').innerHTML = `
+    <div class="mono">Job Review</div>
+    <h1>${esc(data.manifest.job_id)}</h1>
+    ${videoRel ? `<video controls src="/media/${encodeURIComponent(id)}/${encodeURIComponent(videoRel)}"></video>` : '<div class="mono">No data — no video rendered yet</div>'}
+    <div class="row">
+      <button id="approveBtn" class="btn" ${data.manifest.preflight_passed ? '' : 'disabled'} onclick="approveJob('${esc(id)}')">Approve export</button>
+      <button id="tweakBtn" class="btn secondary" onclick="saveTweak('${esc(id)}')">Save tweak note</button>
+      <span id="actionMsg" class="mono" role="status"></span>
+    </div>
+    <h2 style="margin-top:18px">Preflight gates (G0-G11)</h2>
+    <table><thead><tr><th class="mono">Gate</th><th class="mono">Status</th><th class="mono">Summary</th></tr></thead><tbody>
+      ${gates.map(g => `<tr><td class="mono">${esc(g.gate_id)}</td><td><span class="status-pill"><span class="dot ${g.passed?'confirmed':'problem'}" aria-hidden="true"></span>${g.passed?'Confirmed':'Problem'}</span></td><td>${esc(g.summary)}</td></tr>`).join('')}
+    </tbody></table>
+    <h2 style="margin-top:18px">Draft social copy</h2>
+    <label class="mono" for="ytTitle">YouTube title</label><textarea id="ytTitle">${esc(copy.youtube_title||'')}</textarea>
+    <label class="mono" for="xPost" style="display:block;margin-top:8px">X post</label><textarea id="xPost">${esc(copy.x_post||'')}</textarea>
+    <label class="mono" for="tweakNote" style="display:block;margin-top:8px">Feedback or tweak note</label><textarea id="tweakNote" placeholder="e.g. Move card 2s later"></textarea>
+  `;
+}
+
+async function approveJob(id) {
+  const btn = document.getElementById('approveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ng-bars" aria-hidden="true"><span></span><span></span><span></span></span>Saving...';
+  const { ok, data } = await apiFetch('/api/jobs/' + encodeURIComponent(id) + '/approve', { method: 'POST', body: '{}' });
+  btn.textContent = 'Approve export';
+  document.getElementById('actionMsg').innerHTML = ok ? renderTick('Approved') : esc(data.error || 'Problem');
+  loadJobs();
+}
+
+async function saveTweak(id) {
+  const btn = document.getElementById('tweakBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ng-bars" aria-hidden="true"><span></span><span></span><span></span></span>Saving...';
+  const note = document.getElementById('tweakNote').value;
+  const { ok } = await apiFetch('/api/jobs/' + encodeURIComponent(id) + '/tweak', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note, youtube_title: document.getElementById('ytTitle').value, x_post: document.getElementById('xPost').value })
+  });
+  btn.disabled = false;
+  btn.textContent = 'Save tweak note';
+  document.getElementById('actionMsg').innerHTML = ok ? renderTick('Saved') : 'Problem saving';
+}
+
+async function loadSchedule() {
+  const { data } = await apiFetch('/api/schedule');
+  const el = document.getElementById('scheduleTable');
+  el.className = '';
+  const rows = (data.jobs || []).map(j => `
+    <tr>
+      <td><strong>${esc(j.bot)}</strong></td>
+      <td>${esc(j.name)}</td>
+      <td class="mono">${esc((j.days||[]).join(','))}</td>
+      <td class="mono tabular">${esc(j.time)} AEST</td>
+    </tr>
+  `).join('');
+  el.innerHTML = `<table><thead><tr><th class="mono">Bot</th><th class="mono">Routine</th><th class="mono">Days</th><th class="mono">Time</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function generateHeimdallBrief() {
+  const btn = document.getElementById('briefBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ng-bars" aria-hidden="true"><span></span><span></span><span></span></span>Building...';
+  const { ok, data } = await apiFetch('/api/heimdall/brief', { method: 'POST', body: '{}' });
+  btn.disabled = false;
+  btn.textContent = 'Generate Heimdall 7:00am List';
+  if (ok) {
+    document.getElementById('briefStatus').innerHTML = renderTick('Ready');
+    document.getElementById('briefOutput').innerHTML = (data.items || []).map((it, i) => `
+      <div class="list-item" style="flex-direction:column;align-items:flex-start">
+        <div><strong>${i+1}. ${esc(it.item)}</strong></div>
+        <div style="color:var(--ng-text-2);font-size:13px">Recommendation: ${esc(it.recommendation)}</div>
+      </div>
+    `).join('');
+  }
+}
+
+async function loadSystem() {
+  const { data } = await apiFetch('/api/system');
+  const el = document.getElementById('systemHealth');
+  el.className = '';
+  const assetsRows = (data.assets || []).map(a => `
+    <tr>
+      <td>${esc(a.file)}</td>
+      <td><span class="status-pill"><span class="dot ${a.present?'confirmed':'late'}" aria-hidden="true"></span>${a.present?'Present':'Missing (copy from Grok Bot)'}</span></td>
+    </tr>
+  `).join('');
+  el.innerHTML = `
+    <div class="list-item"><span>GPU / UE5 Smart-Pause</span><span class="status-pill"><span class="dot ${data.gpu_busy?'late':'confirmed'}" aria-hidden="true"></span>${esc(data.gpu_status)}</span></div>
+    <div class="list-item"><span>Local Ollama (127.0.0.1:11434)</span><span class="status-pill"><span class="dot ${data.ollama_online?'confirmed':'nodata'}" aria-hidden="true"></span>${data.ollama_online?'Online (A$0)':'Offline (run setup_local_env.ps1)'}</span></div>
+    <div class="list-item"><span>Footage Folders (F:\\DDG_Video_Studio)</span><span class="status-pill"><span class="dot ${data.footage_root_exists?'confirmed':'late'}" aria-hidden="true"></span>${data.footage_root_exists?'Ready':'Not initialized yet'}</span></div>
+    <h3 style="margin-top:14px">Brand Media Assets</h3>
+    <table><thead><tr><th class="mono">File in assets\\</th><th class="mono">Status</th></tr></thead><tbody>${assetsRows}</tbody></table>
+  `;
+}
+
+async function togglePause() {
+  const sw = document.getElementById('pauseSwitch');
+  sw.classList.add('stretching');
+  await apiFetch('/api/pause', { method: 'POST', body: '{}' });
+  setTimeout(() => sw.classList.remove('stretching'), durMs('--ng-dur-quick'));
+  loadBots();
+}
+
+(function init() {
+  const firstTab = document.querySelector('.nav-tab[aria-current="page"]');
+  positionPill(firstTab, false);
+  updateTtsButtonUi();
+  if (location.protocol === 'file:') {
+    document.getElementById('offlineBanner').classList.remove('hidden');
+    document.getElementById('ddgMark').src = '../assets/DDG_Logo_New.png';
+    document.getElementById('watcherStatus').textContent = 'Offline preview';
+    document.getElementById('botRoster').innerHTML = '<div style="color:var(--ng-text-2)">Start <code>scripts\\run_studio.bat</code> to manage bots live.</div>';
+    return;
+  }
+  loadBots();
+  refreshLlmBadge();
+  loadRules();
+  refreshTtsStatus();
+  refreshDiffusionStatus();
+  refreshDaemonsStatus();
+  updateHandsFreeUi();
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const ab = document.getElementById('alertsBtn');
+    if (ab) { ab.textContent = 'Alerts: On'; ab.classList.add('active-skill'); }
+  }
+  pollNotifications();
+  setInterval(pollNotifications, 20000);
+})();
+</script>
+</body>
+</html>
