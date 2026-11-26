@@ -4,28 +4,30 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="ddg-token" content="__DDG_SESSION_TOKEN__" />
-<title>DDG | Local Bot Studio</title>
+<title>DDG | Bot Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23000000'/%3E%3Crect x='15' y='4' width='2' height='4' fill='%23ffffff'/%3E%3Ccircle cx='16' cy='4' r='2' fill='%23ffffff'/%3E%3Crect x='7' y='9' width='18' height='15' rx='4' fill='%23ffffff'/%3E%3Crect x='10' y='13' width='4' height='4' rx='1' fill='%23000000'/%3E%3Crect x='18' y='13' width='4' height='4' rx='1' fill='%23000000'/%3E%3Crect x='12' y='20' width='8' height='2' rx='1' fill='%23000000'/%3E%3Crect x='4' y='14' width='2' height='5' rx='1' fill='%23ffffff'/%3E%3Crect x='26' y='14' width='2' height='5' rx='1' fill='%23ffffff'/%3E%3C/svg%3E" />
 <style>
   :root {
     --ng-night: #090a0f;
-    --ng-graphite: #12141a;
+    --ng-graphite: #141518;
     --ng-text: #ffffff;
-    --ng-text-2: rgba(255, 255, 255, 0.85);
-    --ng-text-3: rgba(255, 255, 255, 0.60);
-    --ng-text-sub: rgba(255, 255, 255, 0.90);
-    --ng-glass-plain: rgba(255, 255, 255, 0.08);
+    --ng-text-2: rgba(255, 255, 255, 0.72);
+    --ng-text-3: rgba(255, 255, 255, 0.62);
+    --ng-text-sub: rgba(255, 255, 255, 0.78);
+    --ng-glass-plain: rgba(255, 255, 255, 0.05);
     --ng-glass-thick: rgba(255, 255, 255, 0.12);
     --ng-glass-elevated: rgba(255, 255, 255, 0.18);
-    --ng-glass-photo: rgba(255, 255, 255, 0.10);
-    --ng-edge: rgba(255, 255, 255, 0.24);
-    --ng-hairline: rgba(255, 255, 255, 0.15);
+    --ng-glass-photo: rgba(16, 18, 24, 0.52);
+    --ng-edge: rgba(255, 255, 255, 0.10);
+    --ng-hairline: rgba(255, 255, 255, 0.08);
     --ng-highlight: rgba(255, 255, 255, 0.32);
-    --ng-btn-outline: rgba(255, 255, 255, 0.24);
-    --ng-btn-fill: rgba(255, 255, 255, 0.14);
-    --ng-pill-fill: rgba(255, 255, 255, 0.18);
+    --ng-btn-outline: rgba(255, 255, 255, 0.16);
+    --ng-btn-fill: rgba(255, 255, 255, 0.10);
+    --ng-pill-fill: rgba(255, 255, 255, 0.10);
     --ng-row-hover: rgba(255, 255, 255, 0.12);
-    --ng-lockup-divider: rgba(255, 255, 255, 0.35);
+    --ng-lockup-divider: rgba(255, 255, 255, 0.28);
     --ng-ring-track: rgba(255, 255, 255, 0.22);
     --ng-ring-live: rgba(255, 255, 255, 0.85);
     --ng-dusk-glow: rgba(108, 199, 240, 0.12);
@@ -34,12 +36,12 @@
     --ng-violet: #a78bfa;
     --ng-amber: #f5a524;
     --ng-amber-edge: rgba(245, 165, 36, 0.45);
-    --ng-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Geist", "Segoe UI", system-ui, sans-serif;
-    --ng-mono: "SF Mono", "Geist Mono", Consolas, monospace;
-    --ng-blur-bg: blur(28px) saturate(190%);
+    --ng-sans: Geist, system-ui, sans-serif;
+    --ng-mono: 'Geist Mono', ui-monospace, monospace;
+    --ng-blur-bg: blur(22px) saturate(140%);
     --ng-blur-subtle: blur(16px) saturate(170%);
-    --ng-apple-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.40);
-    --ng-card-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.48), inset 0 1px 1px rgba(255, 255, 255, 0.36);
+    --ng-apple-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px rgba(0, 0, 0, 0.30);
+    --ng-card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 40px rgba(0, 0, 0, 0.30);
     --ng-dur-instant: 120ms;
     --ng-dur-quick: 200ms;
     --ng-dur-base: 320ms;
@@ -113,10 +115,10 @@
     padding: 20px;
     min-height: 100vh;
     background:
-      linear-gradient(rgba(7, 8, 12, 0.15), rgba(7, 8, 12, 0.35)),
-      url('/assets/ddg_studio_bg.webp') no-repeat center center fixed;
+      linear-gradient(180deg, rgba(7, 8, 11, 0.25) 0%, rgba(7, 8, 11, 0.55) 55%, rgba(7, 8, 11, 0.92) 100%),
+      url('/assets/backgrounds/david-becker.webp') no-repeat center top fixed;
     background-size: cover;
-    background-color: var(--ng-graphite);
+    background-color: #07080b;
     color: var(--ng-text);
     font-family: var(--ng-sans);
     font-size: 14px;
@@ -703,6 +705,35 @@
   h2 { font-size: 20px; font-weight: 500; margin: 4px 0 10px; }
   h3 { font-size: 15px; font-weight: 600; margin: 4px 0 8px; }
 
+  /* Core view (design A2) */
+  .ng-glass { background: var(--ng-glass-photo); backdrop-filter: var(--ng-blur-bg); -webkit-backdrop-filter: var(--ng-blur-bg);
+    border: 1px solid var(--ng-edge); border-radius: 16px; box-shadow: var(--ng-card-shadow); padding: 14px 18px; }
+  .core-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2.2fr) minmax(280px, 1fr); gap: 18px; margin-top: 18px; }
+  .core-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .core-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .core-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ng-hairline); }
+  .core-row:last-child { border-bottom: 0; }
+  .core-row .sub { color: var(--ng-text-2); white-space: nowrap; }
+  .core-row .dot { margin-right: 8px; vertical-align: middle; }
+  .core-rest { padding: 10px 0 2px; color: var(--ng-text-3); font-size: 12.5px; }
+  .core-log { font-family: var(--ng-mono); font-size: 12.5px; line-height: 1.8; color: var(--ng-text-2); }
+  .core-stage { position: relative; min-height: 640px; min-width: 0; }
+  #coreCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .core-title { position: absolute; top: 6px; left: 0; right: 0; text-align: center; }
+  .core-greeting { font-size: 32px; font-weight: 400; margin-top: 4px; }
+  .core-state { position: absolute; left: 0; right: 0; bottom: 92px; text-align: center; }
+  .core-speak { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); width: min(600px, 94%);
+    display: flex; gap: 10px; align-items: center; padding: 8px 8px 8px 16px; }
+  .core-speak input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--ng-text); font: inherit; padding: 10px 2px; margin: 0; }
+  .core-speak input:focus { outline: none; }
+  .core-hero { font-size: 30px; font-weight: 300; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .core-note { font-size: 12.5px; color: var(--ng-text-3); }
+  .core-item { padding: 12px 0; border-bottom: 1px solid var(--ng-hairline); }
+  .core-item:last-child { border-bottom: 0; }
+  .core-item .core-note { margin-top: 2px; }
+  .dot.hollow { background: transparent; border: 1px solid var(--ng-text); }
+  @media (max-width: 1100px) { .core-grid { grid-template-columns: 1fr; } .core-stage { min-height: 520px; order: -1; } }
+
   @media (max-width: 760px) {
     body.dusk { padding: 14px 14px calc(24px + env(safe-area-inset-bottom)); }
     .topbar { flex-direction: column; align-items: flex-start; }
@@ -714,15 +745,16 @@
 <body class="dusk">
   <header class="topbar">
     <div class="lockup">
-      <img id="ddgMark" src="/assets/DDG_Logo_New.png" alt="DDG" onerror="this.style.display='none'" />
+      <img id="ddgMark" src="/assets/ddg-mark-white-256.png" alt="DDG" onerror="this.style.display='none'" />
       <span class="lockup-ddg">DDG</span>
       <span class="lockup-div" aria-hidden="true"></span>
-      <span class="lockup-prod">Local Bot Studio</span>
+      <span class="lockup-prod">Bot Studio</span>
     </div>
 
     <nav class="nav-bar" aria-label="Studio sections">
       <div id="navPill" class="ng-pill" aria-hidden="true"></div>
-      <button class="nav-tab" data-view="bots" aria-current="page" onclick="switchView('bots', this)">Bots &amp; Chat</button>
+      <button class="nav-tab" data-view="core" aria-current="page" onclick="switchView('core', this)">Core</button>
+      <button class="nav-tab" data-view="bots" onclick="switchView('bots', this)">Bots &amp; Chat</button>
       <button class="nav-tab" data-view="video" onclick="switchView('video', this)">Video Studio</button>
       <button class="nav-tab" data-view="schedule" onclick="switchView('schedule', this)">Schedules &amp; System</button>
     </nav>
@@ -745,8 +777,46 @@
     <strong>Local server offline.</strong> Run <code>scripts\run_studio.bat</code> and open <code>http://127.0.0.1:8765</code> to connect live bot chat, triggers, and approvals.
   </div>
 
+  <!-- VIEW 0: CORE (home, design A2 "The Core in Night Glass", 26 Nov 2026) -->
+  <main id="view-core" class="core-grid">
+    <aside class="core-col">
+      <section class="ng-glass" aria-label="Team">
+        <div class="core-head"><h3>Team</h3><span class="mono" id="coreTeamCount">Reading</span></div>
+        <div id="coreTeam"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading team</span></div>
+      </section>
+      <section class="ng-glass" aria-label="Latest messages">
+        <h3>Latest</h3>
+        <div id="coreLatest" class="core-log"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading messages</span></div>
+      </section>
+    </aside>
+    <section class="core-stage" aria-label="The core">
+      <canvas id="coreCanvas" role="img" aria-label="The core: a sphere of white light with your working bots orbiting it. It turns slowly while idle and brightens while a bot is thinking."></canvas>
+      <div class="core-title">
+        <div class="mono" id="coreModel">Local AI</div>
+        <div class="core-greeting" id="coreGreeting">Hello, Markus</div>
+      </div>
+      <div class="core-state mono" id="coreState" role="status">Idle</div>
+      <form class="ng-glass core-speak" onsubmit="coreSpeak(event)">
+        <label for="coreSay" class="mono">Speak</label>
+        <input id="coreSay" autocomplete="off" placeholder="Heimdall, what needs me today?" />
+        <button class="btn" type="submit">Send</button>
+      </form>
+    </section>
+    <aside class="core-col">
+      <section class="ng-glass" aria-label="Waiting for you">
+        <div class="core-head"><h3>Waiting for you</h3><span class="mono" id="coreWaitCount">Reading</span></div>
+        <div id="coreWaiting"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading approvals</span></div>
+      </section>
+      <section class="ng-glass" aria-label="Paper crypto">
+        <div class="mono">Plutus &middot; paper crypto</div>
+        <div style="font-size:15px;font-weight:600;margin-top:8px">Not running yet</div>
+        <div class="core-note">Starts when the Qwen crypto paper bot is built. Results will show here.</div>
+      </section>
+    </aside>
+  </main>
+
   <!-- VIEW 1: BOTS & CHAT -->
-  <main id="view-bots" class="grid-2">
+  <main id="view-bots" class="grid-2 hidden">
     <section class="card accent-ice" aria-label="DDG Bot Roster">
       <div class="mono">Marketing Mode Org Chart</div>
       <h2>DDG AI Employees</h2>
@@ -1053,7 +1123,7 @@
     return nativeFetch(url, o);
   };
 })();
-let currentView = 'bots';
+let currentView = 'core';
 let activeBotName = 'Heimdall';
 let activeGroupId = null;
 let lastBotsCache = [];
@@ -1126,10 +1196,11 @@ function switchView(view, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => {
     t.setAttribute('aria-current', t === btn ? 'page' : 'false');
   });
-  ['bots', 'video', 'schedule'].forEach(v => {
+  ['core', 'bots', 'video', 'schedule'].forEach(v => {
     document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
   });
   positionPill(btn, true);
+  if (view === 'core') loadCore();
   if (view === 'video') { loadInbox(); loadJobs(); }
   if (view === 'schedule') { loadSchedule(); loadSystem(); loadSocial(); loadGovernanceProposals(); pcLoadPlans(); loadImages(); }
 }
@@ -2705,18 +2776,139 @@ async function togglePause() {
   loadBots();
 }
 
+/* ===== Core view (design A2) ===== */
+function coreWhen(iso) { return iso ? String(iso).slice(11, 16) : ''; }
+async function loadCore() {
+  const hr = new Date().getHours();
+  document.getElementById('coreGreeting').textContent = (hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening') + ', Markus';
+  const [botsR, propsR, plansR, socialR] = await Promise.all([
+    apiFetch('/api/bots').catch(() => ({ ok: false })),
+    apiFetch('/api/governance/proposals').catch(() => ({ ok: false })),
+    apiFetch('/api/pc/plans/list', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => ({ ok: false })),
+    apiFetch('/api/social').catch(() => ({ ok: false })),
+  ]);
+  const team = document.getElementById('coreTeam');
+  if (botsR.ok) {
+    const bots = botsR.data.bots || [];
+    const on = bots.filter(b => b.active), off = bots.filter(b => !b.active);
+    window.coreCrew = on.map(b => b.display_name || b.name).slice(0, 6);
+    document.getElementById('coreTeamCount').textContent = botsR.data.paused ? 'Studio paused' : on.length + ' on duty';
+    team.innerHTML = on.map(b => `<div class="core-row"><span>${esc(b.display_name || b.name)}</span><span class="sub"><span class="dot working" aria-hidden="true"></span>On duty</span></div>`).join('') +
+      (off.length ? `<div class="core-rest"><span class="dot hollow" aria-hidden="true" style="margin-right:8px;vertical-align:middle"></span>Resting: ${esc(off.map(b => b.display_name || b.name).join(', '))}</div>` : '');
+    const msgs = [];
+    bots.forEach(b => (b.history || []).forEach(m => { if (m.sender !== 'Markus') msgs.push({ who: b.display_name || b.name, at: m.timestamp_aest || '', text: m.text || '' }); }));
+    msgs.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    document.getElementById('coreLatest').innerHTML = msgs.length ? msgs.slice(0, 5).map(m =>
+      `<div>${esc(coreWhen(m.at))} ${esc(m.who)}: ${esc(m.text.replace(/[*_`#]/g, '').slice(0, 70))}${m.text.length > 70 ? '…' : ''}</div>`).join('') : 'No messages yet.';
+  } else { team.textContent = 'Could not read the team.'; }
+
+  const items = [];
+  (propsR.ok ? (propsR.data.proposals || []) : []).filter(p => p.status === 'pending_markus_approval').forEach(p => items.push(
+    `<div class="core-item"><div style="font-weight:500">Quarantine ${esc(String(p.target).split(/[\\/]/).pop())}</div><div class="core-note">Proposed by ${esc(p.proposer)} · can be restored</div>
+     <div class="row" style="margin-top:8px"><button class="btn sm" onclick="resolveGovernance(${jsArg(p.id)}, 'approve').then(loadCore)">Approve</button><button class="btn secondary sm" onclick="resolveGovernance(${jsArg(p.id)}, 'veto').then(loadCore)">Veto</button></div></div>`));
+  (plansR.ok ? (plansR.data.plans || []) : []).filter(p => p.status === 'pending_markus_approval').forEach(p => { const s = p.summary || {}; items.push(
+    `<div class="core-item"><div style="font-weight:500">${esc(p.title)}</div><div class="core-note">${s.will_move || 0} moves · ${esc(pcFmt(s.bytes))} · ${s.warnings || 0} warnings · can be undone</div>
+     <div class="row" style="margin-top:8px"><button class="btn sm" onclick="pcAct(${jsArg(p.id)}, 'approve').then(loadCore)">Approve &amp; run</button><button class="btn secondary sm" onclick="pcAct(${jsArg(p.id)}, 'reject').then(loadCore)">Reject</button></div></div>`); });
+  (socialR.ok ? (socialR.data.queue || []) : []).filter(q => q.status === 'pending_approval').forEach(q => items.push(
+    `<div class="core-item"><div style="font-weight:500">Social post draft</div><div class="core-note">${esc(String(q.text || q.caption || '').slice(0, 80))}</div>
+     <div class="row" style="margin-top:8px"><button class="btn secondary sm" onclick="switchView('schedule', document.querySelector('.nav-tab[data-view=schedule]'))">Review</button></div></div>`));
+  document.getElementById('coreWaitCount').textContent = String(items.length);
+  document.getElementById('coreWaiting').innerHTML = items.length ? items.join('') : '<div class="core-note" style="padding:8px 0">Nothing is waiting on you.</div>';
+  try {
+    const sys = await apiFetch('/api/system');
+    const d = sys.data || {};
+    document.getElementById('coreModel').textContent = d.ollama_online ? `${d.text_model || 'Local AI'} · on this PC` : 'Local AI is not answering';
+  } catch (e) {}
+}
+
+function coreSpeak(ev) {
+  ev.preventDefault();
+  const inp = document.getElementById('coreSay');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  switchView('bots', document.querySelector('.nav-tab[data-view=bots]'));
+  selectBot('Heimdall');
+  const chat = document.getElementById('chatInput');
+  chat.value = text;
+  sendChat();
+}
+
+(function coreAnimation() {
+  const el = document.getElementById('coreCanvas');
+  if (!el) return;
+  const ctx = el.getContext('2d');
+  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let w = 0, h = 0, think = 0, t0 = performance.now();
+  const fit = () => { const r = el.getBoundingClientRect(), d = window.devicePixelRatio || 1; w = r.width; h = r.height; el.width = Math.max(1, Math.round(w * d)); el.height = Math.max(1, Math.round(h * d)); ctx.setTransform(d, 0, 0, d, 0, 0); };
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fit).observe(el);
+  fit();
+  const pts = []; for (let i = 0, n = 1100; i < n; i++) { const y = 1 - (i / (n - 1)) * 2, r = Math.sqrt(1 - y * y), th = i * 2.39996; pts.push([Math.cos(th) * r, y, Math.sin(th) * r]); }
+  const stateEl = document.getElementById('coreState');
+  let lastState = '';
+  function draw(t) {
+    const busy = (typeof chatBusy !== 'undefined' && chatBusy);
+    think += ((busy ? 1 : 0) - think) * (still ? 1 : 0.04);
+    const label = busy ? 'Thinking' : 'Idle';
+    if (label !== lastState) { stateEl.textContent = label; lastState = label; }
+    ctx.clearRect(0, 0, w, h);
+    const cx = w / 2, cy = h * 0.5, R = Math.min(w, h) * 0.25 * (1 + 0.03 * think), ry = t * (0.12 + 0.3 * think), rx = -0.32;
+    const rot = (x, y, z, a = ry, b = rx) => { const x1 = x * Math.cos(a) + z * Math.sin(a), z1 = -x * Math.sin(a) + z * Math.cos(a); return [x1, y * Math.cos(b) - z1 * Math.sin(b), y * Math.sin(b) + z1 * Math.cos(b)]; };
+    const halo = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 2);
+    halo.addColorStop(0, `rgba(108,199,240,${0.10 + 0.14 * think})`); halo.addColorStop(1, 'rgba(108,199,240,0)');
+    ctx.fillStyle = halo; ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const [x, y, z] of pts) {
+      const wob = 1 + 0.045 * Math.sin(y * 8 + t * 2.5) * think;
+      const [X, Y, Z] = rot(x * wob, y * wob, z * wob); const k = 3 / (3 + Z);
+      ctx.fillStyle = `rgba(255,255,255,${Z < 0 ? 0.5 + 0.35 * think : 0.12})`;
+      ctx.fillRect(cx + X * R * k, cy + Y * R * k, 1.4, 1.4);
+    }
+    ctx.lineWidth = 1;
+    for (let i = -2; i <= 2; i++) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath();
+      for (let s = 0; s <= 72; s++) { const a = s / 72 * Math.PI * 2, yy = i * 0.32, rr = Math.sqrt(1 - yy * yy) * 1.03; const [X, Y, Z] = rot(Math.cos(a) * rr, yy, Math.sin(a) * rr); const k = 3 / (3 + Z); s ? ctx.lineTo(cx + X * R * k, cy + Y * R * k) : ctx.moveTo(cx + X * R * k, cy + Y * R * k); }
+      ctx.stroke();
+    }
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.5);
+    core.addColorStop(0, `rgba(230,246,255,${0.3 + 0.45 * think})`); core.addColorStop(1, 'rgba(108,199,240,0)');
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx, cy, R * 0.5, 0, Math.PI * 2); ctx.fill();
+    const crew = window.coreCrew || [];
+    ctx.font = '500 12px Geist, system-ui, sans-serif';
+    crew.forEach((name, i) => {
+      const tilt = [0.45, -0.35, 0.2, -0.12, 0.3, -0.25][i % 6], ph = i * (Math.PI * 2 / Math.max(1, crew.length));
+      const orbit = (a) => rot(Math.cos(a) * 1.55, Math.sin(a) * 1.55 * tilt, Math.sin(a) * 1.55, ry * 0.35, rx + 0.18);
+      ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.beginPath();
+      for (let s = 0; s <= 90; s++) { const [X, Y, Z] = orbit(s / 90 * Math.PI * 2); const k = 3 / (3 + Z); s ? ctx.lineTo(cx + X * R * k, cy + Y * R * k) : ctx.moveTo(cx + X * R * k, cy + Y * R * k); }
+      ctx.stroke();
+      const [X, Y, Z] = orbit(ph + t * 0.22); const k = 3 / (3 + Z), px = cx + X * R * k, py = cy + Y * R * k;
+      const g = ctx.createRadialGradient(px, py, 0, px, py, 12); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillText(name, px + 12, py - 8);
+    });
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  function loop(now) {
+    if (currentView === 'core' && !document.hidden) draw((now - t0) / 1000);
+    if (!still) requestAnimationFrame(loop);
+  }
+  if (still) { setTimeout(() => draw(3), 300); setInterval(() => draw(3), 2000); } else requestAnimationFrame(loop);
+})();
+
 (function init() {
   const firstTab = document.querySelector('.nav-tab[aria-current="page"]');
   positionPill(firstTab, false);
   updateTtsButtonUi();
   if (location.protocol === 'file:') {
     document.getElementById('offlineBanner').classList.remove('hidden');
-    document.getElementById('ddgMark').src = '../assets/DDG_Logo_New.png';
+    document.getElementById('ddgMark').src = '../assets/ddg-mark-white-256.png';
     document.getElementById('watcherStatus').textContent = 'Offline preview';
     document.getElementById('botRoster').innerHTML = '<div style="color:var(--ng-text-2)">Start <code>scripts\\run_studio.bat</code> to manage bots live.</div>';
     return;
   }
   loadBots();
+  loadCore();
+  setInterval(() => { if (currentView === 'core' && !document.hidden) loadCore(); }, 30000);
   refreshLlmBadge();
   loadRules();
   refreshTtsStatus();

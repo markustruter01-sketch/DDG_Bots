@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.26-phase3"
+STUDIO_VERSION = "2026.11.26-core-ui"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 
@@ -719,6 +719,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                         "gpu_busy": busy,
                         "gpu_status": gpu_status,
                         "ollama_online": ollama.is_available(),
+                        "text_model": settings["ollama"]["text_model"],
                         "footage_root": str(footage_root),
                         "footage_root_exists": footage_root.exists(),
                         "assets": assets_status,
