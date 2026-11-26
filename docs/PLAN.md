@@ -20,7 +20,7 @@ The owner is Markus. Claude writes the code; Markus approves anything that touch
 
 ---
 
-## Phase 0 — Safety net (26 Nov) ✅ in progress
+## Phase 0 — Safety net (26 Nov) ✅ done except the GitHub repo
 
 | Step | Done when |
 |---|---|
@@ -28,7 +28,7 @@ The owner is Markus. Claude writes the code; Markus approves anything that touch
 | 0.2 Code history | Baseline commit made; pushed to a private GitHub repo `DDG_BotStudio` once Markus creates it (Claude can't create repos) |
 | 0.3 AI models installed | `ollama list` shows `qwen3:8b` and `qwen3-vl:4b`; speed test logged (`scripts\fix_models.bat`) |
 
-## Phase 1 — Lock the doors (26–27 Nov)
+## Phase 1 — Lock the doors ✅ live 26 Nov (`2026.11.26-phase1`)
 
 | Step | What | Done when |
 |---|---|---|
@@ -41,7 +41,7 @@ The owner is Markus. Claude writes the code; Markus approves anything that touch
 | 1.7 | **Fix the broken "propose" request** (it called a function that doesn't exist) | Test passes |
 | 1.8 | **Reliable restart:** one `Restart DDG Bot Studio.bat` that stops the old copy by its port, then starts the new one | After a restart, `/api/health` shows the new version |
 
-## Phase 2 — PC worker done properly (Dec, week 1)
+## Phase 2 — PC worker done properly ✅ 2.1–2.4 and 2.6 (via Governance) live 26 Nov (`phase2`); 2.5 (bots propose plans) still to do
 
 - **2.1 Tools, run by plain code:** list folder, folder sizes, search by name/type/date, find duplicates (by content), read a text file (size-capped), create folder, move/rename, copy. No delete tool.
 - **2.2 Change plans:** a bot (or Markus) writes a plan such as "move 214 old installers from Downloads to F:\Archive\Installers". The studio dry-runs it and shows every file, the total size, and warnings (open files, files used in the last 7 days, anything inside a code repo).
@@ -50,7 +50,11 @@ The owner is Markus. Claude writes the code; Markus approves anything that touch
 - **2.5 Bots use the tools through the same plans:** Qwen proposes plans with Ollama tool-calling; plain code checks and runs them. A bot can never run a change itself.
 - **2.6 Quarantine page:** what's there, when, why; Restore; "empty items older than 30 days" only on Markus's click.
 
-## Phase 3 — Always on (Dec, week 1–2)
+## Phase 3 — Always on ✅ 3.1, 3.2, 3.4, 3.5, 3.6 live 26 Nov (`phase3`); 3.3 heartbeat waits on a DDG Control endpoint
+
+Also fixed 26 Nov: the server's video watcher never ran a job (a tuple was used as true/false). Known limit: the GPU guard counts Qwen's own memory, so videos wait while Qwen is loaded; fix with the crypto bot (Phase 5).
+
+### Phase 3 original list
 
 - **3.1 Start at logon** (Task Scheduler) plus a watchdog that restarts the studio if it stops.
 - **3.2 One video watcher, not two** (today the launcher starts a second one alongside the server's own).
