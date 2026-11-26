@@ -59,7 +59,7 @@ class TestBook(unittest.TestCase):
         self.assertEqual(out[0]["why"], "target")
 
     def test_size_caps(self) -> None:
-        b = Book("t")
+        b = Book("t", spec=R.spec(one_bet=False))     # two longs at once, so the total cap is what is being tested
         b.open("BTCUSDT", "LONG", px(60000, 60000), atr=0.5, at="t", reason="r", funding_ok=True)   # tiny ATR -> huge size wanted
         notional = b.positions["BTCUSDT"]["qty"] * 60000
         self.assertLessEqual(notional, R.START_BALANCE * R.MAX_NOTIONAL_PER_POSITION + 1)

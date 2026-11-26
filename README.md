@@ -8,8 +8,9 @@ No cloud AI bills, no data leaving the PC.
 - **Tidy up your PC (carefully):** bots can look at folders and *propose* clean-up plans. Nothing moves until Markus
   approves in the dashboard, every move can be undone, and "delete" means move to quarantine, never real deletion.
   System, secret and backup folders are always blocked.
-- **Crypto paper trading (fake money only):** Qwen trades BTC and ETH with fake US$100,000 against a coin flip,
-  a plain trend rule and simply holding BTC. No exchange account, no keys, no real orders.
+- **Crypto paper trading (fake money only):** Qwen trades BTC and ETH with fake US$100,000 against 200 coin flips,
+  a plain trend rule and simply holding BTC, and a second way: the trend rule proposes, Qwen may only take or skip.
+  A replay tool tests ideas on past prices first. No exchange account, no keys, no real orders.
 - **Video studio:** checks and edits DDG videos against the house rules (G0–G11), blurring private details.
 - **Dashboard:** `http://127.0.0.1:8765`, only reachable from the PC itself and locked with a per-launch session token.
 
@@ -28,4 +29,5 @@ No cloud AI bills, no data leaving the PC.
 `config/private_terms.example.json`) stay on the PC.
 
 **Tests**
-`python -m unittest tests.test_security tests.test_pc_worker tests.test_bot_tools tests.test_routines tests.test_crypto_paper`
+`python -m unittest tests.test_security tests.test_pc_worker tests.test_bot_tools tests.test_routines tests.test_crypto_paper
+tests.test_crypto_v4 tests.test_crypto_replay`
