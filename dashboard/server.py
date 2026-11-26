@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.26-phase1"
+STUDIO_VERSION = "2026.11.26-phase2"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 
@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from studio import social
 from studio import tts as tts_engine
 from studio import governance
+from studio import pc_worker
 from studio import image_gen
 from studio.ai_director import OllamaClient
 from studio.memory import BotMemory
@@ -141,7 +142,9 @@ CAPABILITIES_PROMPT = (
     "WHAT YOU CANNOT DO YET: you cannot open, read, search, move, change or delete files on Markus's PC; "
     "you cannot run programs, browse the web, send email or post anything. "
     "If Markus asks for any of those, say plainly that you can't do it yet, and say what he can do instead "
-    "(for example: propose a tidy-up in the dashboard's Governance panel). "
+    "(for example: the dashboard's 'Tidy Up Your PC' panel lets him look at a folder and make a move plan; "
+    "nothing moves until he approves it, and every plan can be undone). "
+    "Do not offer to run scripts or automations; you may write a script as text for Markus to review. "
     "Never say or imply you did something you did not do, and never describe file contents you have not been shown. "
     "Removing files: only Markus approves, in the dashboard; approved items go to quarantine and can be restored. "
     "You never place trades. Never invent numbers, facts, dates or status; if you don't know, say so. "
@@ -797,6 +800,44 @@ def make_handler(studio_root: Path, footage_root: Path):
 
             self._send_json(404, {"error": "Not found"})
 
+        def _pc_worker(self, path: str, body: dict[str, Any]) -> None:
+            """PC worker (Phase 2). All POST, so every call carries the session token."""
+            def num(key: str) -> float | None:
+                v = body.get(key)
+                return float(v) if v not in (None, "") else None
+            try:
+                if path == "/api/pc/list":
+                    out = pc_worker.list_dir(str(body.get("path", "")))
+                elif path == "/api/pc/sizes":
+                    out = pc_worker.folder_sizes(str(body.get("path", "")))
+                elif path == "/api/pc/search":
+                    out = pc_worker.search(str(body.get("path", "")), str(body.get("name") or "*"),
+                                           num("older_than_days"), num("min_size_mb"))
+                elif path == "/api/pc/duplicates":
+                    out = pc_worker.find_duplicates(str(body.get("path", "")), num("min_size_mb") or 1.0)
+                elif path == "/api/pc/plans/list":
+                    out = {"plans": pc_worker.list_plans()}
+                elif path == "/api/pc/plans":
+                    proposer = str(body.get("proposer", "Markus"))
+                    if proposer.lower() != "markus" and not _find_bot_def(proposer):
+                        raise pc_worker.WorkerError(f"Unknown proposer '{proposer}'")
+                    moves = body.get("moves")
+                    if not isinstance(moves, list):
+                        raise pc_worker.WorkerError("'moves' must be a list of {src, dest}.")
+                    out = {"plan": pc_worker.create_plan(proposer, str(body.get("title", "")), moves, str(body.get("reason", "")))}
+                elif path.startswith("/api/pc/plans/"):
+                    rest = path[len("/api/pc/plans/"):].strip("/").split("/")
+                    if len(rest) != 2 or rest[1] not in ("approve", "reject", "undo"):
+                        raise pc_worker.WorkerError("Use /api/pc/plans/<id>/approve, /reject or /undo.")
+                    fn = {"approve": pc_worker.approve_plan, "reject": pc_worker.reject_plan, "undo": pc_worker.undo_plan}[rest[1]]
+                    out = {"plan": fn(unquote(rest[0]))}
+                else:
+                    self._send_json(404, {"error": "Unknown PC worker action."})
+                    return
+                self._send_json(200, out)
+            except (pc_worker.WorkerError, FileNotFoundError, NotADirectoryError, PermissionError) as exc:
+                self._send_json(400, {"error": str(exc)})
+
         def do_POST(self) -> None:
             parsed = urlparse(self.path)
             path = parsed.path
@@ -838,6 +879,10 @@ def make_handler(studio_root: Path, footage_root: Path):
                     self._send_json(201, {"proposal": prop})
                 except Exception as exc:
                     self._send_json(400, {"error": str(exc)})
+                return
+
+            if path.startswith("/api/pc/"):
+                self._pc_worker(path, body)
                 return
 
             if path.startswith("/api/governance/restore/"):

@@ -933,16 +933,46 @@
     <section class="card accent-amber" style="grid-column:1 / -1">
       <div class="row" style="justify-content:space-between">
         <div>
-          <div class="mono">Multi-Agent Governance &middot; File Consensus Lock</div>
-          <h2>File Governance &amp; Deletion Proposals</h2>
+          <div class="mono">Governance &middot; Quarantine</div>
+          <h2>Remove-to-Quarantine Proposals</h2>
         </div>
         <button class="chip" onclick="loadGovernanceProposals()">Refresh Proposals</button>
       </div>
       <p class="mono" style="margin:4px 0 12px;color:var(--ng-text-2)">
-        Physical Safety Lock Active: Bots are physically blocked from deleting any files on your machine.
-        Deletions require an AI team vote + Markus's one-click signoff.
+        Nothing is ever deleted. An approved item moves to F:\DDG_Quarantine and can be restored.
+        Checks shown are real (size, last changed, code repo). Only you can approve.
       </p>
       <div id="governancePanel" class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Loading proposals...</div>
+    </section>
+
+    <!-- PC Worker (Phase 2): look, plan, approve, undo -->
+    <section class="card accent-mint" style="grid-column:1 / -1">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="mono">PC Worker &middot; Plan &rarr; Approve &rarr; Undo</div>
+          <h2>Tidy Up Your PC</h2>
+        </div>
+        <button class="chip" onclick="pcLoadPlans()">Refresh Plans</button>
+      </div>
+      <p class="mono" style="margin:4px 0 12px;color:var(--ng-text-2)">
+        Look at a folder, tick what to move, and make a plan. Nothing moves until you approve it, and every plan can be undone.
+        Blocked places (Windows, AppData, keys, code history, backups, AI models) never appear as movable.
+      </p>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <label for="pcPath" class="mono" style="align-self:center">Folder</label>
+        <input type="text" id="pcPath" placeholder="C:\Users\User\Downloads" style="flex:1;min-width:260px" onkeydown="if(event.key==='Enter')pcLook('list')">
+        <button class="btn sm" onclick="pcLook('list')">Look</button>
+        <button class="btn secondary sm" onclick="pcLook('sizes')">Sizes</button>
+        <button class="btn secondary sm" onclick="pcLook('duplicates')">Find duplicates</button>
+      </div>
+      <div id="pcResults" style="margin-top:10px"></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px">
+        <label for="pcDest" class="mono" style="align-self:center">Move ticked to</label>
+        <input type="text" id="pcDest" placeholder="F:\Archive\Downloads-2026  (or type QUARANTINE)" style="flex:1;min-width:260px">
+        <input type="text" id="pcTitle" placeholder="Plan name" style="width:220px">
+        <button class="btn sm" onclick="pcMakePlan()">Make plan (dry run)</button>
+      </div>
+      <div id="pcPlans" style="margin-top:14px"></div>
     </section>
 
     <!-- Marketing Free AI Image Generation Panel -->
@@ -1101,7 +1131,7 @@ function switchView(view, btn) {
   });
   positionPill(btn, true);
   if (view === 'video') { loadInbox(); loadJobs(); }
-  if (view === 'schedule') { loadSchedule(); loadSystem(); loadSocial(); loadGovernanceProposals(); loadImages(); }
+  if (view === 'schedule') { loadSchedule(); loadSystem(); loadSocial(); loadGovernanceProposals(); pcLoadPlans(); loadImages(); }
 }
 
 window.addEventListener('resize', () => {
@@ -1457,6 +1487,91 @@ async function restoreGovernance(propId) {
     const el = document.getElementById('governancePanel');
     if (el) { const d = document.createElement('div'); d.className = 'mono'; d.style.color = 'var(--ng-amber)'; d.textContent = 'Restore failed: ' + data.error; el.prepend(d); }
   }
+}
+
+/* ===== PC Worker (Phase 2) ===== */
+function pcFmt(b) { if (b == null) return '—'; const u = ['B','KB','MB','GB','TB']; let i = 0; let v = b; while (v >= 1024 && i < 4) { v /= 1024; i++; } return v.toFixed(i ? 1 : 0) + ' ' + u[i]; }
+async function pcPost(url, body) {
+  return apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+}
+async function pcLook(kind) {
+  const path = document.getElementById('pcPath').value.trim();
+  const out = document.getElementById('pcResults');
+  if (!path) { out.textContent = 'Type a folder path first.'; return; }
+  out.innerHTML = '<span class="ng-loader"><span class="ng-revolve" aria-hidden="true"></span>Looking...</span>';
+  const { ok, data } = await pcPost('/api/pc/' + kind, { path });
+  if (!ok) { out.textContent = (data && data.error) || 'Could not look there.'; return; }
+  if (kind === 'duplicates') {
+    const groups = data.groups || [];
+    if (!groups.length) { out.textContent = 'No duplicate files (1 MB or bigger) found.'; return; }
+    out.innerHTML = `<div class="mono" style="margin-bottom:6px">${groups.length} duplicate groups · ${esc(pcFmt(data.wasted_total))} could be freed. Keep the first copy; extra copies are ticked.</div>` +
+      `<div style="overflow-x:auto"><table><thead><tr><th class="mono">Move?</th><th class="mono">Copy</th><th class="mono">Size</th></tr></thead><tbody>` +
+      groups.map(g => g.copies.map((c, i) => `<tr><td><input type="checkbox" class="pcTick" data-path="${esc(c)}" ${i ? 'checked' : ''} aria-label="Tick ${esc(c)}"></td><td><code style="word-break:break-all">${esc(c)}</code></td><td class="mono">${esc(pcFmt(g.size))}</td></tr>`).join('')).join('') +
+      `</tbody></table></div>`;
+    return;
+  }
+  const items = data.items || [];
+  if (!items.length) { out.textContent = 'This folder is empty.'; return; }
+  out.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th class="mono">Move?</th><th class="mono">Name</th><th class="mono">Size</th><th class="mono">${kind === 'sizes' ? 'Files' : 'Changed'}</th></tr></thead><tbody>` +
+    items.map(it => `<tr>
+      <td>${it.blocked ? '<span class="mono" style="color:var(--ng-amber)">blocked</span>' : `<input type="checkbox" class="pcTick" data-path="${esc(it.path)}" aria-label="Tick ${esc(it.name)}">`}</td>
+      <td>${it.is_dir ? '<span class="mono">[folder]</span> ' : ''}${it.is_dir && !it.blocked ? `<a href="#" onclick="document.getElementById('pcPath').value=${jsArg(it.path)};pcLook(${jsArg(kind)});return false;">${esc(it.name)}</a>` : esc(it.name)}${it.blocked ? ` <span class="mono" style="color:var(--ng-text-3)">(${esc(it.blocked)})</span>` : ''}</td>
+      <td class="mono">${esc(pcFmt(it.size))}</td>
+      <td class="mono">${esc(kind === 'sizes' ? (it.files == null ? '—' : String(it.files)) : (it.modified || ''))}</td>
+    </tr>`).join('') + `</tbody></table></div>` + (data.truncated ? '<div class="mono">Showing the first 500.</div>' : '');
+}
+async function pcMakePlan() {
+  const dest = document.getElementById('pcDest').value.trim();
+  const title = document.getElementById('pcTitle').value.trim() || 'Tidy-up plan';
+  const ticked = Array.from(document.querySelectorAll('.pcTick:checked')).map(el => el.dataset.path);
+  const out = document.getElementById('pcResults');
+  if (!ticked.length || !dest) { out.insertAdjacentHTML('afterbegin', '<div class="mono" style="color:var(--ng-amber)">Tick at least one item and type where to move it (or QUARANTINE).</div>'); return; }
+  const sep = dest.includes('/') && !dest.includes('\\') ? '/' : '\\';
+  const moves = ticked.map(src => {
+    if (dest.toUpperCase() === 'QUARANTINE') return { src, dest: 'QUARANTINE' };
+    const name = src.split(/[\\/]/).filter(Boolean).pop();
+    return { src, dest: dest.replace(/[\\/]+$/, '') + sep + name };
+  });
+  const { ok, data } = await pcPost('/api/pc/plans', { proposer: 'Markus', title, moves, reason: 'Made in the dashboard' });
+  if (!ok) { out.insertAdjacentHTML('afterbegin', `<div class="mono" style="color:var(--ng-amber)">${esc((data && data.error) || 'Could not make the plan.')}</div>`); return; }
+  pcLoadPlans();
+}
+async function pcLoadPlans() {
+  const el = document.getElementById('pcPlans');
+  if (!el) return;
+  const { ok, data } = await pcPost('/api/pc/plans/list', {});
+  if (!ok) { el.textContent = 'Could not load plans.'; return; }
+  const plans = (data.plans || []).slice().reverse().slice(0, 12);
+  if (!plans.length) { el.innerHTML = '<div style="color:var(--ng-text-2)">No plans yet.</div>'; return; }
+  el.innerHTML = plans.map(p => {
+    const s = p.summary || {};
+    const pending = p.status === 'pending_markus_approval';
+    const canUndo = ['done', 'stopped', 'partly_undone'].includes(p.status);
+    const rows = (p.moves || []).slice(0, 50).map(m => `<tr>
+      <td class="mono" style="color:${m.status === 'blocked' ? 'var(--ng-amber)' : (m.status === 'warn' ? 'var(--ng-amber)' : 'var(--ng-mint)')}">${esc(m.result || m.status)}</td>
+      <td><code style="word-break:break-all">${esc(m.src)}</code></td>
+      <td><code style="word-break:break-all">${esc(m.moved_to || m.dest)}</code></td>
+      <td class="mono">${esc(pcFmt(m.size))}</td>
+      <td class="mono" style="color:var(--ng-text-3)">${esc((m.notes || []).concat(m.result_note ? [m.result_note] : []).join('; '))}</td></tr>`).join('');
+    return `<div class="list-item" style="flex-direction:column;align-items:stretch;margin-bottom:8px">
+      <div class="row" style="justify-content:space-between;flex-wrap:wrap">
+        <div><strong>${esc(p.title)}</strong> <span class="mono">· by ${esc(p.proposer)} · ${esc(String(p.status).replace(/_/g, ' '))}</span></div>
+        <div class="mono tabular" style="color:var(--ng-text-3)">${esc(p.created_at_aest)}</div>
+      </div>
+      <div class="mono" style="margin:4px 0">Will move ${s.will_move || 0} of ${s.moves || 0} · ${esc(pcFmt(s.bytes))} in ${s.files || 0} files · ${s.to_quarantine || 0} to quarantine · ${s.warnings || 0} warnings · ${s.blocked || 0} blocked</div>
+      <details><summary class="mono">Show moves</summary><div style="overflow-x:auto"><table><thead><tr><th class="mono">Status</th><th class="mono">From</th><th class="mono">To</th><th class="mono">Size</th><th class="mono">Notes</th></tr></thead><tbody>${rows}</tbody></table></div></details>
+      ${p.note ? `<div class="mono" style="color:var(--ng-mint);margin-top:4px">${esc(p.note)}</div>` : ''}
+      <div class="row" style="margin-top:8px;gap:8px">
+        ${pending ? `<button class="btn sm" onclick="pcAct(${jsArg(p.id)}, 'approve')">Approve &amp; run</button><button class="btn secondary sm" onclick="pcAct(${jsArg(p.id)}, 'reject')">Reject</button>` : ''}
+        ${canUndo ? `<button class="btn secondary sm" onclick="pcAct(${jsArg(p.id)}, 'undo')">Undo this plan</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+async function pcAct(id, action) {
+  const { ok, data } = await pcPost('/api/pc/plans/' + encodeURIComponent(id) + '/' + action, {});
+  await pcLoadPlans();
+  if (!ok && data && data.error) document.getElementById('pcPlans').insertAdjacentHTML('afterbegin', `<div class="mono" style="color:var(--ng-amber)">${esc(data.error)}</div>`);
 }
 
 /* ===== Marketing Free Image Generation Studio ===== */
@@ -2314,7 +2429,7 @@ async function sendChat() {
         if (ev.start) { ensureBubble(ev.bot_id, ev.bot); return; }
         if (ev.thought !== undefined) {
           const b = ensureBubble(ev.bot_id, ev.bot);
-          b.thought += (b.thought ? '\n' : '') + ev.thought;
+          b.thought += ev.thought;
           b.cotContent.textContent = b.thought;
           b.cotBlock.classList.remove('hidden');
           logEl.scrollTop = logEl.scrollHeight;
