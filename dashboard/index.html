@@ -705,34 +705,38 @@
   h2 { font-size: 20px; font-weight: 500; margin: 4px 0 10px; }
   h3 { font-size: 15px; font-weight: 600; margin: 4px 0 8px; }
 
-  /* Core view (design A2) */
+  /* Core view: orb + chat (26 Nov 2026) */
   .ng-glass { background: var(--ng-glass-photo); backdrop-filter: var(--ng-blur-bg); -webkit-backdrop-filter: var(--ng-blur-bg);
     border: 1px solid var(--ng-edge); border-radius: 16px; box-shadow: var(--ng-card-shadow); padding: 14px 18px; }
-  .core-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2.2fr) minmax(280px, 1fr); gap: 18px; margin-top: 18px; }
-  .core-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-  .core-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .core-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ng-hairline); }
-  .core-row:last-child { border-bottom: 0; }
-  .core-row .sub { color: var(--ng-text-2); white-space: nowrap; }
-  .core-row .dot { margin-right: 8px; vertical-align: middle; }
-  .core-rest { padding: 10px 0 2px; color: var(--ng-text-3); font-size: 12.5px; }
-  .core-log { font-family: var(--ng-mono); font-size: 12.5px; line-height: 1.8; color: var(--ng-text-2); }
-  .core-stage { position: relative; min-height: 640px; min-width: 0; }
+  .core-grid { display: grid; grid-template-columns: minmax(380px, 0.9fr) minmax(0, 1.25fr); gap: 18px; margin-top: 18px; align-items: start; }
+  .core-left { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .core-stage { position: relative; height: min(48vh, 520px); min-height: 340px; }
   #coreCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .core-title { position: absolute; top: 6px; left: 0; right: 0; text-align: center; }
+  .core-title { position: absolute; top: 4px; left: 0; right: 0; text-align: center; pointer-events: none; }
   .core-greeting { font-size: 32px; font-weight: 400; margin-top: 4px; }
-  .core-state { position: absolute; left: 0; right: 0; bottom: 92px; text-align: center; }
-  .core-speak { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); width: min(600px, 94%);
-    display: flex; gap: 10px; align-items: center; padding: 8px 8px 8px 16px; }
-  .core-speak input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--ng-text); font: inherit; padding: 10px 2px; margin: 0; }
-  .core-speak input:focus { outline: none; }
-  .core-hero { font-size: 30px; font-weight: 300; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .core-state { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; }
+  .core-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .core-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .core-chip { min-height: 40px; border-radius: 999px; border: 1px solid var(--ng-btn-outline); background: transparent; color: var(--ng-text-2);
+    padding: 0 14px; font: inherit; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    transition: background-color var(--ng-dur-instant) var(--ng-ease-out), transform var(--ng-dur-instant) var(--ng-ease-out); }
+  .core-chip:active { transform: scale(0.97); }
+  .core-chip[aria-current="true"] { background: rgba(255, 255, 255, 0.14); color: var(--ng-text); }
+  .core-chip.resting { color: var(--ng-text-3); }
+  .core-cards { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
   .core-note { font-size: 12.5px; color: var(--ng-text-3); }
-  .core-item { padding: 12px 0; border-bottom: 1px solid var(--ng-hairline); }
+  .core-item { padding: 10px 0; border-bottom: 1px solid var(--ng-hairline); }
   .core-item:last-child { border-bottom: 0; }
   .core-item .core-note { margin-top: 2px; }
+  .core-chat { min-width: 0; }
+  .core-chat .chat-shell { height: calc(100vh - 128px); }
   .dot.hollow { background: transparent; border: 1px solid var(--ng-text); }
-  @media (max-width: 1100px) { .core-grid { grid-template-columns: 1fr; } .core-stage { min-height: 520px; order: -1; } }
+  @media (max-width: 1100px) {
+    .core-grid { grid-template-columns: 1fr; }
+    .core-stage { height: 340px; min-height: 300px; }
+    .core-chat .chat-shell { height: 78vh; }
+  }
+  @media (max-width: 760px) { .core-cards { grid-template-columns: 1fr; } .core-greeting { font-size: 24px; } }
 
   @media (max-width: 760px) {
     body.dusk { padding: 14px 14px calc(24px + env(safe-area-inset-bottom)); }
@@ -777,42 +781,34 @@
     <strong>Local server offline.</strong> Run <code>scripts\run_studio.bat</code> and open <code>http://127.0.0.1:8765</code> to connect live bot chat, triggers, and approvals.
   </div>
 
-  <!-- VIEW 0: CORE (home, design A2 "The Core in Night Glass", 26 Nov 2026) -->
+  <!-- VIEW 0: CORE (home). 26 Nov 2026: orb and chat side by side, orb always visible. -->
   <main id="view-core" class="core-grid">
-    <aside class="core-col">
-      <section class="ng-glass" aria-label="Team">
-        <div class="core-head"><h3>Team</h3><span class="mono" id="coreTeamCount">Reading</span></div>
-        <div id="coreTeam"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading team</span></div>
-      </section>
-      <section class="ng-glass" aria-label="Latest messages">
-        <h3>Latest</h3>
-        <div id="coreLatest" class="core-log"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading messages</span></div>
-      </section>
-    </aside>
-    <section class="core-stage" aria-label="The core">
-      <canvas id="coreCanvas" role="img" aria-label="The core: a sphere of white light with your working bots orbiting it. It turns slowly while idle and brightens while a bot is thinking."></canvas>
-      <div class="core-title">
-        <div class="mono" id="coreModel">Local AI</div>
-        <div class="core-greeting" id="coreGreeting">Hello, Markus</div>
+    <section class="core-left" aria-label="The core">
+      <div class="core-stage">
+        <canvas id="coreCanvas" role="img" aria-label="The core: a sphere of white light with your working bots orbiting it. It turns slowly while idle and brightens while a bot is thinking."></canvas>
+        <div class="core-title">
+          <div class="mono" id="coreModel">Local AI</div>
+          <div class="core-greeting" id="coreGreeting">Hello, Markus</div>
+        </div>
+        <div class="core-state mono" id="coreState" role="status">Idle</div>
       </div>
-      <div class="core-state mono" id="coreState" role="status">Idle</div>
-      <form class="ng-glass core-speak" onsubmit="coreSpeak(event)">
-        <label for="coreSay" class="mono">Speak</label>
-        <input id="coreSay" autocomplete="off" placeholder="Heimdall, what needs me today?" />
-        <button class="btn" type="submit">Send</button>
-      </form>
+      <div class="ng-glass core-strip" aria-label="Team">
+        <div class="core-head"><h3>Talk to</h3><span class="mono" id="coreTeamCount">Reading</span></div>
+        <div id="coreTeam" class="core-chips"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading team</span></div>
+      </div>
+      <div class="core-cards">
+        <section class="ng-glass" aria-label="Waiting for you">
+          <div class="core-head"><h3>Waiting for you</h3><span class="mono" id="coreWaitCount">Reading</span></div>
+          <div id="coreWaiting"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading approvals</span></div>
+        </section>
+        <section class="ng-glass" aria-label="Paper crypto">
+          <div class="mono">Plutus &middot; paper crypto</div>
+          <div style="font-size:15px;font-weight:600;margin-top:8px">Not running yet</div>
+          <div class="core-note">Starts when the Qwen crypto paper bot is built.</div>
+        </section>
+      </div>
     </section>
-    <aside class="core-col">
-      <section class="ng-glass" aria-label="Waiting for you">
-        <div class="core-head"><h3>Waiting for you</h3><span class="mono" id="coreWaitCount">Reading</span></div>
-        <div id="coreWaiting"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading approvals</span></div>
-      </section>
-      <section class="ng-glass" aria-label="Paper crypto">
-        <div class="mono">Plutus &middot; paper crypto</div>
-        <div style="font-size:15px;font-weight:600;margin-top:8px">Not running yet</div>
-        <div class="core-note">Starts when the Qwen crypto paper bot is built. Results will show here.</div>
-      </section>
-    </aside>
+    <div id="coreChatHost" class="core-chat"></div>
   </main>
 
   <!-- VIEW 1: BOTS & CHAT -->
@@ -823,7 +819,7 @@
       <div id="botRoster" class="roster-scroll ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading roster...</div>
     </section>
 
-    <section class="card chat-shell" aria-label="Bot Command Center">
+    <section id="chatShell" class="card chat-shell" aria-label="Bot Command Center">
       <div class="chat-header">
         <div class="chat-header-id">
           <div id="selectedBotAvatar" class="bot-avatar" aria-hidden="true">HM</div>
@@ -1191,6 +1187,14 @@ function positionPill(btn, animate) {
   lastTabBtn = btn;
 }
 
+/* One chat panel, shown on Core (next to the orb) or on Bots & Chat. */
+function placeChat(view) {
+  const shell = document.getElementById('chatShell');
+  if (!shell) return;
+  const host = view === 'core' ? document.getElementById('coreChatHost') : document.getElementById('view-bots');
+  if (host && shell.parentElement !== host) host.appendChild(shell);
+}
+
 function switchView(view, btn) {
   currentView = view;
   document.querySelectorAll('.nav-tab').forEach(t => {
@@ -1199,6 +1203,7 @@ function switchView(view, btn) {
   ['core', 'bots', 'video', 'schedule'].forEach(v => {
     document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
   });
+  placeChat(view);
   positionPill(btn, true);
   if (view === 'core') loadCore();
   if (view === 'video') { loadInbox(); loadJobs(); }
@@ -2790,16 +2795,11 @@ async function loadCore() {
   const team = document.getElementById('coreTeam');
   if (botsR.ok) {
     const bots = botsR.data.bots || [];
-    const on = bots.filter(b => b.active), off = bots.filter(b => !b.active);
-    window.coreCrew = on.map(b => b.display_name || b.name).slice(0, 6);
+    const on = bots.filter(b => b.active);
+    window.coreCrew = on.map(b => b.display_name || b.name).slice(0, 9);
     document.getElementById('coreTeamCount').textContent = botsR.data.paused ? 'Studio paused' : on.length + ' on duty';
-    team.innerHTML = on.map(b => `<div class="core-row"><span>${esc(b.display_name || b.name)}</span><span class="sub"><span class="dot working" aria-hidden="true"></span>On duty</span></div>`).join('') +
-      (off.length ? `<div class="core-rest"><span class="dot hollow" aria-hidden="true" style="margin-right:8px;vertical-align:middle"></span>Resting: ${esc(off.map(b => b.display_name || b.name).join(', '))}</div>` : '');
-    const msgs = [];
-    bots.forEach(b => (b.history || []).forEach(m => { if (m.sender !== 'Markus') msgs.push({ who: b.display_name || b.name, at: m.timestamp_aest || '', text: m.text || '' }); }));
-    msgs.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-    document.getElementById('coreLatest').innerHTML = msgs.length ? msgs.slice(0, 5).map(m =>
-      `<div>${esc(coreWhen(m.at))} ${esc(m.who)}: ${esc(m.text.replace(/[*_`#]/g, '').slice(0, 70))}${m.text.length > 70 ? '…' : ''}</div>`).join('') : 'No messages yet.';
+    team.innerHTML = bots.map(b => `<button class="core-chip${b.active ? '' : ' resting'}" aria-current="${b.name === activeBotName && !activeGroupId ? 'true' : 'false'}" onclick="coreTalkTo(${jsArg(b.name)})">
+        <span class="dot ${b.active ? 'working' : 'hollow'}" aria-hidden="true"></span>${esc(b.display_name || b.name)}${b.active ? '' : ' <span class="core-note">resting</span>'}</button>`).join('');
   } else { team.textContent = 'Could not read the team.'; }
 
   const items = [];
@@ -2821,17 +2821,10 @@ async function loadCore() {
   } catch (e) {}
 }
 
-function coreSpeak(ev) {
-  ev.preventDefault();
-  const inp = document.getElementById('coreSay');
-  const text = inp.value.trim();
-  if (!text) return;
-  inp.value = '';
-  switchView('bots', document.querySelector('.nav-tab[data-view=bots]'));
-  selectBot('Heimdall');
-  const chat = document.getElementById('chatInput');
-  chat.value = text;
-  sendChat();
+function coreTalkTo(name) {
+  selectBot(name);
+  document.querySelectorAll('#coreTeam .core-chip').forEach(c => c.setAttribute('aria-current', 'false'));
+  loadCore();
 }
 
 (function coreAnimation() {
@@ -2906,6 +2899,7 @@ function coreSpeak(ev) {
     document.getElementById('botRoster').innerHTML = '<div style="color:var(--ng-text-2)">Start <code>scripts\\run_studio.bat</code> to manage bots live.</div>';
     return;
   }
+  placeChat('core');
   loadBots();
   loadCore();
   setInterval(() => { if (currentView === 'core' && !document.hidden) loadCore(); }, 30000);

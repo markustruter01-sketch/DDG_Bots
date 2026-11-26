@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.26-core-ui"
+STUDIO_VERSION = "2026.11.26-core-chat"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 
@@ -54,7 +54,7 @@ DEFAULT_BOT_ROSTER: list[dict[str, Any]] = [
         "name": "Heimdall",
         "title": "GM / COO",
         "active": True,
-        "zone": "Executive & Ops (Full Access)",
+        "zone": "Executive & Ops",
         "summary": "Owns the 7:00am weekday list (<=5 asks with recommendations), project coordination, and Monday 9:00am review.",
         "tools": ["sql_read", "schedule_digest", "preflight_audit", "code_review", "system_audit"],
     },
