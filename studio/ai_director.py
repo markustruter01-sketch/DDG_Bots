@@ -113,6 +113,19 @@ class OllamaClient:
             raw = json.loads(resp.read().decode("utf-8"))
         return str(raw.get("message", {}).get("content", "")).strip()
 
+    def chat_raw(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None,
+                 model: str | None = None) -> dict[str, Any]:
+        """One non-streamed chat call; returns the reply message (may carry tool_calls)."""
+        body: dict[str, Any] = {"model": model or self.text_model, "stream": False, "think": False, "keep_alive": "10m",
+                                "options": {"temperature": 0.2, "num_predict": 700}, "messages": messages}
+        if tools:
+            body["tools"] = tools
+        req = urllib.request.Request(f"{self.base_url}/api/chat", data=json.dumps(body).encode("utf-8"),
+                                     headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
+            raw = json.loads(resp.read().decode("utf-8"))
+        return raw.get("message", {}) or {}
+
     def chat_text_stream(
         self,
         system_prompt: str,

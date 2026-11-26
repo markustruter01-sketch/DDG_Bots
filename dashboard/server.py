@@ -24,6 +24,8 @@ AEST = timezone(timedelta(hours=10))
 STUDIO_VERSION = "2026.11.26-core-chat"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
+# Bots only see chat history from after the honesty fixes, so old false answers ("full access") are not repeated.
+HONEST_SINCE = "2026-11-26T13:00:00+10:00"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -31,6 +33,7 @@ from studio import social
 from studio import tts as tts_engine
 from studio import governance
 from studio import pc_worker
+from studio import bot_tools
 from studio import image_gen
 from studio.ai_director import OllamaClient
 from studio.memory import BotMemory
@@ -137,16 +140,14 @@ DEFAULT_BOT_ROSTER: list[dict[str, Any]] = [
 
 
 CAPABILITIES_PROMPT = (
-    "WHAT YOU CAN DO RIGHT NOW: talk with Markus and draft text (posts, emails, plans, scripts, checklists). "
+    "WHAT YOU CAN DO: talk with Markus and draft text (posts, emails, plans, scripts, checklists). "
     "When Markus asks for an image, the studio makes it for you. "
-    "WHAT YOU CANNOT DO YET: you cannot open, read, search, move, change or delete files on Markus's PC; "
-    "you cannot run programs, browse the web, send email or post anything. "
-    "If Markus asks for any of those, say plainly that you can't do it yet, and say what he can do instead "
-    "(for example: the dashboard's 'Tidy Up Your PC' panel lets him look at a folder and make a move plan; "
-    "nothing moves until he approves it, and every plan can be undone). "
+    "When Markus asks about his files, the studio gives you read-only tools to look at folders and to propose a "
+    "move plan; he approves or rejects it in 'Waiting for you', and every plan can be undone. "
+    "WHAT YOU CANNOT DO: move, change or delete files yourself; run programs; browse the web; send email or post anything. "
+    "If Markus asks for those, say plainly that you can't, and say what he can do instead. "
     "Do not offer to run scripts or automations; you may write a script as text for Markus to review. "
-    "Never say or imply you did something you did not do, and never describe file contents you have not been shown. "
-    "Removing files: only Markus approves, in the dashboard; approved items go to quarantine and can be restored. "
+    "Never say or imply you did something you did not do, and never describe file contents or folders a tool has not shown you. "
     "You never place trades. Never invent numbers, facts, dates or status; if you don't know, say so. "
 )
 
@@ -805,6 +806,53 @@ def make_handler(studio_root: Path, footage_root: Path):
 
             self._send_json(404, {"error": "Not found"})
 
+        def _chat_with_tools(self, ollama: Any, bot: dict[str, Any], sys_prompt: str, msg: str,
+                             prior_hist: list[dict[str, str]], stream_mode: bool, record: Any) -> None:
+            """Chat where the bot may look at folders and propose a plan (Phase 2.5). Nothing moves without Markus."""
+            def emit(ev: dict[str, Any]) -> None:
+                if stream_mode:
+                    self.wfile.write(f"data: {json.dumps(ev)}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+            try:
+                if stream_mode:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                    self.send_header("Cache-Control", "no-cache")
+                    self.end_headers()
+                msgs = ollama._messages(sys_prompt + "\n" + bot_tools.TOOLS_PROMPT, msg, prior_hist)
+                reply = ""
+                try:
+                    for rnd in range(bot_tools.MAX_ROUNDS + 1):
+                        m = ollama.chat_raw(msgs, tools=bot_tools.TOOLS if rnd < bot_tools.MAX_ROUNDS else None)
+                        calls = m.get("tool_calls") or []
+                        if not calls:
+                            reply = str(m.get("content") or "").strip()
+                            break
+                        msgs.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": calls})
+                        for c in calls:
+                            fn = c.get("function", {}) or {}
+                            name, args = str(fn.get("name", "")), fn.get("arguments") or {}
+                            if isinstance(args, str):
+                                try:
+                                    args = json.loads(args)
+                                except ValueError:
+                                    args = {}
+                            emit({"thought": bot_tools.describe(name, args) + "\n", "source": "tools"})
+                            msgs.append({"role": "tool", "content": bot_tools.run(name, args, bot["name"]), "tool_name": name})
+                except Exception as exc:
+                    reply = reply or f"I couldn't finish looking ({type(exc).__name__}). Please ask again."
+                reply = reply or "I looked, but couldn't put an answer together. Please ask again."
+                source = f"ollama:{ollama.text_model}+tools"
+                record(reply, source)
+                if stream_mode:
+                    emit({"token": reply, "source": source})
+                    self.wfile.write(b"data: [DONE]\n\n")
+                    self.wfile.flush()
+                else:
+                    self._send_json(200, {"bot": bot["name"], "reply": reply, "reply_source": source})
+            except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                return
+
         def _pc_worker(self, path: str, body: dict[str, Any]) -> None:
             """PC worker (Phase 2). All POST, so every call carries the session token."""
             def num(key: str) -> float | None:
@@ -1148,7 +1196,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                             )
                             hist_msgs = []
                             for h in prior_group + replies:
-                                if h.get("source") == "offline_charter":
+                                if h.get("source") == "offline_charter" or h.get("timestamp_aest", "") < HONEST_SINCE:
                                     continue
                                 if h.get("sender") == "Markus":
                                     hist_msgs.append({"role": "user", "content": h["text"]})
@@ -1323,7 +1371,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                 prior_hist = [
                     {"role": "user" if h.get("sender") == "Markus" else "assistant", "content": h.get("text", "")}
                     for h in _load_chats().get(bot["name"], [])[-4:]
-                    if h.get("source") != "offline_charter" and "read-only access to the" not in h.get("text", "").lower()
+                    if h.get("source") != "offline_charter" and h.get("timestamp_aest", "") >= HONEST_SINCE
                 ]
                 sys_prompt = (
                     f"You are {bot['name']}, {bot['title']} at Digital Dynamics Group (DDG). "
@@ -1332,6 +1380,10 @@ def make_handler(studio_root: Path, footage_root: Path):
                     f"{CAPABILITIES_PROMPT}\n"
                     f"Keep replies concise, professional, and helpful in plain Australian English. {extra_rules}"
                 )
+
+                if ollama is not None and bot_tools.wants_tools(msg):
+                    self._chat_with_tools(ollama, bot, sys_prompt, msg, prior_hist, stream_mode, _record_bot_turn)
+                    return
 
                 if stream_mode and ollama is not None:
                     headers_sent = False

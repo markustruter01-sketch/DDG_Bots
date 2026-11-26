@@ -2594,6 +2594,7 @@ async function sendChat() {
     document.getElementById('chatStatus').textContent = 'Connection problem: is the studio server running?';
   } finally {
     finish();
+    if (currentView === 'core') loadCore();
   }
 }
 

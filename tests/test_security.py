@@ -170,7 +170,7 @@ class TestHonestPrompts(unittest.TestCase):
         for phrase in ("FULL OPERATIONAL ACCESS", "FULL READ AND WRITE ACCESS", "Never say 'I cannot access your files'",
                        "FORBIDDEN STATEMENTS", "Qwen3:8B active at A$0"):
             self.assertNotIn(phrase, src)
-        self.assertIn("WHAT YOU CANNOT DO YET", src)
+        self.assertIn("WHAT YOU CANNOT DO:", src)
 
 
 if __name__ == "__main__":
