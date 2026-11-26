@@ -30,6 +30,8 @@ The owner is Markus. Claude writes the code; Markus approves anything that touch
 
 ## Phase 1 — Lock the doors ✅ live 26 Nov (`2026.11.26-phase1`)
 
+Also 26 Nov: Core home page (orb + chat, Night Glass), bots no longer see pre-fix chat history, Heimdall's false "Full Access" label removed.
+
 | Step | What | Done when |
 |---|---|---|
 | 1.1 | **Request lock:** a secret made at each launch; every change request must carry it; wrong Host or Origin refused | Tests: a request without the secret → 403; with a wrong Host → 403; from the dashboard → works |
@@ -41,7 +43,7 @@ The owner is Markus. Claude writes the code; Markus approves anything that touch
 | 1.7 | **Fix the broken "propose" request** (it called a function that doesn't exist) | Test passes |
 | 1.8 | **Reliable restart:** one `Restart DDG Bot Studio.bat` that stops the old copy by its port, then starts the new one | After a restart, `/api/health` shows the new version |
 
-## Phase 2 — PC worker done properly ✅ 2.1–2.4 and 2.6 (via Governance) live 26 Nov (`phase2`); 2.5 (bots propose plans) still to do
+## Phase 2 — PC worker done properly ✅ all live 26 Nov (2.5 bots look and propose plans from chat: `tools-routines`)
 
 - **2.1 Tools, run by plain code:** list folder, folder sizes, search by name/type/date, find duplicates (by content), read a text file (size-capped), create folder, move/rename, copy. No delete tool.
 - **2.2 Change plans:** a bot (or Markus) writes a plan such as "move 214 old installers from Downloads to F:\Archive\Installers". The studio dry-runs it and shows every file, the total size, and warnings (open files, files used in the last 7 days, anything inside a code repo).
@@ -63,7 +65,9 @@ Also fixed 26 Nov: the server's video watcher never ran a job (a tuple was used 
 - **3.5 GPU guard knows games** (WoW, Diablo IV, Star Citizen, Steam games): heavy AI work waits; the crypto bot gets priority.
 - **3.6 One launcher;** the leftover duplicates removed.
 
-## Phase 4 — Real employees (Dec, weeks 2–3)
+## Phase 4 — Real employees: ✅ 4.1 routine runner live 26 Nov (all six routines; Tyr's honestly skipped: no Gmail/Shopify). 4.2 partly (briefs use studio facts; DDG Control/GitHub/Finance data need connections). 4.3–4.6 open
+
+### Phase 4 original list
 
 - **4.1 One job runner** that runs every routine in `rules.json` (today only 2 of 6 run, as canned text).
 - **4.2 Briefs from real data, each item showing its source:**
@@ -80,7 +84,9 @@ Also fixed 26 Nov: the server's video watcher never ran a job (a tuple was used 
 - **4.5 Memory that helps:** per-bot notes Markus can see and edit; no hidden memory.
 - **4.6 Phone alerts through DDG Control** for anything waiting on you.
 
-## Phase 5 — Qwen crypto paper bot (in parallel, Dec)
+## Phase 5 — Qwen crypto paper bot ✅ built and live 26 Nov (`2026.11.26-crypto`, rules v1)
+
+### Phase 5 original list
 
 - **5.1** Separate folder `DDG_Crypto_Paper` with its own page in Night Glass style. It shares Ollama, with GPU priority.
 - **5.2** Live Binance prices; every price tick recorded locally.
@@ -95,7 +101,9 @@ Also fixed 26 Nov: the server's video watcher never ran a job (a tuple was used 
 - **5.7** Plutus reports trades and daily profit and loss; there's a line in the 7am brief and a heartbeat to DDG Control.
 - **5.8** Rules written down before the official start; a change restarts the record.
 
-## Phase 6 — Quality (ongoing)
+## Phase 6 — Quality ✅ 6.1 tests (39), 6.2 workflow file ready (runs once the GitHub repo exists), 6.3 AGENTS.md, 6.4 HOW-IT-WORKS.md
+
+### Phase 6 original list
 
 - **6.1** Tests for every safety rule (request lock, blocked list, quarantine, undo, limits).
 - **6.2** GitHub Actions running the tests on Windows for every change.
