@@ -18,7 +18,12 @@
     "pause_on_processes": [
       "UnrealEditor.exe",
       "UnrealEditor-Win64-Shipping.exe",
-      "Streamlabs Desktop.exe"
+      "Streamlabs Desktop.exe",
+      "Wow.exe",
+      "WowClassic.exe",
+      "Diablo IV.exe",
+      "StarCitizen.exe",
+      "League of Legends.exe"
     ],
     "vram_busy_threshold_mb": 2500
   },

@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.26-phase2"
+STUDIO_VERSION = "2026.11.26-phase3"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 
@@ -416,7 +416,11 @@ def make_handler(studio_root: Path, footage_root: Path):
                             prev = seen_sizes.get(file)
                             seen_sizes[file] = cur_size
                             if prev is not None and prev == cur_size:
-                                if is_gpu_busy_for_user():
+                                busy, _why = is_gpu_busy_for_user(
+                                    paused_processes=settings["gpu"]["pause_on_processes"],
+                                    vram_threshold_mb=settings["gpu"]["vram_busy_threshold_mb"],
+                                )
+                                if busy:  # was `if is_gpu_busy_for_user():` - a tuple, always true, so nothing ever ran
                                     continue
                                 archive_dir = inbox.parent / "05_Archive_Raw"
                                 archive_dir.mkdir(parents=True, exist_ok=True)
