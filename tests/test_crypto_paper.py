@@ -127,5 +127,32 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(again.meta["decisions"], 2)
 
 
+class TestSingleInstance(unittest.TestCase):
+    def test_second_copy_cannot_lock_and_reset_archives(self) -> None:
+        import crypto_paper.runner as run
+        tmp = Path(tempfile.mkdtemp())
+        old = run.DATA
+        run.DATA = tmp
+        try:
+            first = run._single_instance_lock()
+            self.assertIsNotNone(first)
+            import subprocess
+            code = ("import sys,crypto_paper.runner as r;from pathlib import Path;r.DATA=Path(sys.argv[1]);"
+                    "print('LOCKED' if r._single_instance_lock() is None else 'GOT')")
+            out = subprocess.run([sys.executable, "-c", code, str(tmp)], capture_output=True, text=True,
+                                 cwd=str(Path(__file__).resolve().parent.parent)).stdout.strip()
+            self.assertEqual(out, "LOCKED")
+            (tmp / "books.json").write_text("{}")
+            (tmp / "RESET").write_text("")
+            run._reset_if_asked()
+            self.assertFalse((tmp / "books.json").exists())
+            self.assertFalse((tmp / "RESET").exists())
+            self.assertEqual(len(list(tmp.glob("books_reset_*.json"))), 1)
+            first.close()
+        finally:
+            run.DATA = old
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

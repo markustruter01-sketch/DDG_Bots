@@ -145,17 +145,42 @@ class Paper:
         self.curve.append({"t": at, "qwen": round(self.qwen.equity(prices), 2), "flip": round(self.flip.equity(prices), 2), "hold": round(hold, 2)})
 
 
-LOCK_PORT = 8766   # only one copy may run: the second one cannot bind this port and exits
+def _single_instance_lock():
+    """Exclusive OS file lock; a second copy cannot get it and exits. (26 Nov: the old port lock let two copies run on Windows.)"""
+    DATA.mkdir(parents=True, exist_ok=True)
+    fh = open(DATA / "runner.lock", "a+")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        return None
+    return fh
+
+
+def _reset_if_asked() -> None:
+    """data/crypto/RESET present -> archive the current record and start fresh (used once on 26 Nov)."""
+    marker = DATA / "RESET"
+    if marker.exists():
+        stamp = int(time.time())
+        for name in ("books.json", "state.json", "journal.jsonl"):
+            f = DATA / name
+            if f.exists():
+                f.rename(DATA / f"{f.stem}_reset_{stamp}{f.suffix}")
+        marker.unlink()
 
 
 def main() -> None:
-    import socket
-    lock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        lock.bind(("127.0.0.1", LOCK_PORT))
-    except OSError:
+    lock = _single_instance_lock()
+    if lock is None:
         print("Crypto paper bot is already running.")
         return
+    _reset_if_asked()
     p = Paper()
     p.log("start", f"Crypto paper bot started (rules {R.RULES_VERSION}).")
     prices = None

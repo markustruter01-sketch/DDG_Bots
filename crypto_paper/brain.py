@@ -38,7 +38,7 @@ def parse(text: str) -> Optional[Dict[str, Dict[str, Any]]]:
             if sym in R.SYMBOLS and act in ("LONG", "SHORT", "FLAT"):
                 out[sym] = {"action": act, "play": d.get("play", "NONE"),
                             "confidence": max(0.0, min(1.0, float(d.get("confidence", 0)))),
-                            "reason": str(d.get("reason", ""))[:200]}
+                            "reason": str(d.get("reason", ""))[:400]}
         return out if set(out) == set(R.SYMBOLS) else None
     except Exception:
         return None
