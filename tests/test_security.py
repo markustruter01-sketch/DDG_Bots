@@ -156,6 +156,14 @@ class TestRequestLock(_TempGovernance):
         self.assertEqual(code, 200)
         self.assertTrue(json.loads(body)["ok"])
 
+    def test_crypto_buttons_need_token_and_a_running_bot(self) -> None:
+        body = json.dumps({"action": "reset", "account": "all"}).encode("utf-8")
+        code, _, _ = dispatch_http_request(self.h, "POST", "/api/crypto/control", body, headers={"Host": "127.0.0.1:8765"})
+        self.assertEqual(code, 403)
+        if not (STUDIO_ROOT / "data" / "crypto" / "state.json").exists():
+            code, _, _ = dispatch_http_request(self.h, "POST", "/api/crypto/control", body)
+            self.assertEqual(code, 409)                                 # bot not running: nothing queued for later
+
     def test_propose_endpoint_works(self) -> None:
         f = self.work / "old.log"
         f.write_text("x", encoding="utf-8")

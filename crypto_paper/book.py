@@ -9,8 +9,10 @@ from . import rules as R
 
 
 class Book:
-    def __init__(self, name: str, balance: float = R.START_BALANCE):
+    def __init__(self, name: str, balance: float = R.START_BALANCE, started: Optional[str] = None):
         self.name = name
+        self.started = started          # when this account began (a single-account reset moves it)
+        self.paused = False             # paused: opens nothing new; open trades still hit their stop or target
         self.cash = balance
         self.positions: Dict[str, Dict[str, Any]] = {}
         self.trades: List[Dict[str, Any]] = []
@@ -49,7 +51,7 @@ class Book:
     # ── trading ──
     def open(self, sym: str, side: str, prices, atr: float, at: str, reason: str, funding_ok: bool,
              play: str = "NONE", confidence: Optional[float] = None) -> Optional[str]:
-        if self.locked_today or sym in self.positions or atr <= 0:
+        if self.locked_today or self.paused or sym in self.positions or atr <= 0:
             return None
         eq = self.equity(prices)
         px = prices[sym]["ask"] if side == "LONG" else prices[sym]["bid"]
@@ -155,4 +157,5 @@ class Book:
         return {"name": self.name, "equity": round(eq, 2), "return_pct": round((eq / R.START_BALANCE - 1) * 100, 3),
                 "trades": len(self.trades), "win_rate": round(len(wins) / len(self.trades) * 100, 1) if self.trades else None,
                 "fees": round(self.fees, 2), "funding": round(self.funding, 2), "locked_today": self.locked_today,
+                "paused": self.paused, "started": self.started,
                 "positions": {s: {k: (round(v, 6) if isinstance(v, float) else v) for k, v in p.items()} for s, p in self.positions.items()}}

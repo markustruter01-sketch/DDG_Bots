@@ -232,6 +232,80 @@ class TestScorecard(unittest.TestCase):
         self.assertEqual((t["play"], t["confidence"]), ("FADE", 0.8))
 
 
+class TestControls(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        self.calls = []
+        def dec(snaps, pos, track_record=None):
+            self.calls.append(track_record is not None)
+            return ({s: {"action": "LONG", "play": "TREND", "confidence": .7, "reason": "r"} for s in R.SYMBOLS}, {"seconds": 1})
+        self.p = Paper(self.tmp, decide=dec, mkt=FakeMarket)
+        self.prices = px(60000, 60010)
+        self.p.tick(self.prices)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_cmd(self, action, account):
+        from crypto_paper import controls
+        controls.send(self.tmp, action, account)
+        for path, cmd in controls.pending(self.tmp):
+            self.p.apply(cmd, self.prices)
+            controls.file_done(path)
+
+    def test_send_refuses_unknown_values(self) -> None:
+        from crypto_paper import controls
+        with self.assertRaises(ValueError):
+            controls.send(self.tmp, "withdraw", "qwen")
+        with self.assertRaises(ValueError):
+            controls.send(self.tmp, "reset", "binance")
+
+    def test_pause_stops_new_trades_and_skips_qwen(self) -> None:
+        self.run_cmd("pause", "qwen")
+        self.p.decision_round(self.prices)
+        self.assertEqual(self.p.qwen.positions, {})
+        self.assertEqual(self.calls, [True])                       # only the journal Qwen was asked
+        self.assertIn("BTCUSDT", self.p.journal.positions)
+        self.run_cmd("resume", "qwen")
+        self.p.decision_round(self.prices)
+        self.assertIn("BTCUSDT", self.p.qwen.positions)
+
+    def test_close_trades_and_reset_archive_never_delete(self) -> None:
+        self.p.decision_round(self.prices)
+        self.run_cmd("close_trades", "journal")
+        self.assertEqual(self.p.journal.positions, {})
+        self.assertTrue(all(t["why"] == "closed by Markus" for t in self.p.journal.trades))
+        self.assertIn("BTCUSDT", self.p.qwen.positions)             # other accounts untouched
+        old_trades = len(self.p.journal.trades)
+        self.run_cmd("reset", "journal")
+        self.assertEqual(self.p.journal.trades, [])
+        self.assertEqual(self.p.journal.cash, R.START_BALANCE)
+        archived = json.loads(next((self.tmp / "archive").glob("journal_*.json")).read_text())
+        self.assertEqual(len(archived["trades"]), old_trades)
+        self.assertEqual(len(list((self.tmp / "inbox" / "done").glob("*.json"))), 2)   # commands filed, not deleted
+
+    def test_reset_all_and_restart_keeps_reset(self) -> None:
+        self.p.decision_round(self.prices)
+        self.p.save(self.prices)
+        self.run_cmd("reset", "all")
+        self.assertEqual(self.p.meta["decisions"], 0)
+        self.assertEqual(self.p.qwen.positions, {})
+        self.assertTrue(list((self.tmp / "archive").glob("books_*.json")))
+        self.p.save(self.prices)
+        again = Paper(self.tmp, decide=lambda *a, **k: (None, {}), mkt=FakeMarket)
+        self.assertEqual(again.meta["decisions"], 0)
+
+    def test_old_command_is_ignored(self) -> None:
+        self.p.decision_round(self.prices)
+        self.p.apply({"action": "close_trades", "account": "all", "at": 0}, self.prices)
+        self.assertIn("BTCUSDT", self.p.qwen.positions)
+
+    def test_decide_now(self) -> None:
+        self.p.meta["last_decision_slot"] = 123
+        self.run_cmd("decide_now", "qwen")
+        self.assertEqual(self.p.meta["last_decision_slot"], 0)
+
+
 class TestSingleInstance(unittest.TestCase):
     def test_second_copy_cannot_lock_and_reset_archives(self) -> None:
         import crypto_paper.runner as run

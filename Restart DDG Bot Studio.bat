@@ -8,7 +8,7 @@ echo Starting the new Bot Studio...
 wscript.exe "%~dp0scripts\silent_launch.vbs"
 ping -n 8 127.0.0.1 >nul
 echo.
-echo Health check (should show "version": "2026.11.27-crypto3"):
+echo Health check (should show "version": "2026.11.27-controls"):
 curl.exe -s http://127.0.0.1:8765/api/health
 echo.
 echo.

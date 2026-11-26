@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.27-crypto3"
+STUDIO_VERSION = "2026.11.27-controls"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 # Bots only see chat history from after the honesty fixes, so old false answers ("full access") are not repeated.
@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from studio import social
 from studio import tts as tts_engine
 from studio import governance
+from crypto_paper import controls as crypto_controls
 from studio import pc_worker
 from studio import bot_tools
 from studio import routines
@@ -1053,6 +1054,18 @@ def make_handler(studio_root: Path, footage_root: Path):
 
             if path.startswith("/api/pc/"):
                 self._pc_worker(path, body)
+                return
+
+            if path == "/api/crypto/control":
+                if not _crypto_state().get("running"):
+                    self._send_json(409, {"error": "The crypto bot isn't running right now, so nothing was sent."})
+                    return
+                try:
+                    cmd = crypto_controls.send(crypto_state_path.parent, str(body.get("action", "")), str(body.get("account", "")))
+                except ValueError as exc:
+                    self._send_json(400, {"error": str(exc)})
+                    return
+                self._send_json(200, {"sent": cmd, "note": "Sent. The bot carries it out within a few seconds."})
                 return
 
             if path.startswith("/api/governance/restore/"):

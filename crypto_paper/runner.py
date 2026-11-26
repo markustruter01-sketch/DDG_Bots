@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict
 
-from . import brain, market, scorecard
+from . import brain, controls, market, scorecard
 from . import rules as R
 from .book import Book
 
@@ -47,13 +47,14 @@ def _append(path: Path, obj: Any) -> None:
 class Paper:
     def __init__(self, data: Path = DATA, decide=brain.decide, mkt=market):
         self.data, self.decide, self.mkt = data, decide, mkt
-        self.qwen, self.journal = Book("Qwen"), Book("Qwen + journal")
-        self.flip, self.trend = Book("Coin flip"), Book("Trend rule")
-        self.books = (self.qwen, self.journal, self.flip, self.trend)
+        start = now_iso()
+        self.qwen, self.journal = Book("Qwen", started=start), Book("Qwen + journal", started=start)
+        self.flip, self.trend = Book("Coin flip", started=start), Book("Trend rule", started=start)
         self.meta: Dict[str, Any] = {"rules_version": R.RULES_VERSION, "started": now_iso(), "hold_btc_start": None,
                                      "decisions": 0, "missed": 0, "decision_seconds": [], "last_funding_slot": "",
                                      "last_decision": None, "last_decision_slot": 0, "funding_unknown": 0,
                                      "journal_brain": {"missed": 0, "decision_seconds": [], "last_decision": None}}
+        self.meta["started"] = start
         self.events: list = []
         self.curve: list = []
         self._load()
@@ -68,9 +69,18 @@ class Paper:
             p.rename(self.data / f"books_{int(time.time())}_old_rules.json")   # new rules = fresh record
             return
         self.meta.update(s["meta"])
-        for b, key in ((self.qwen, "qwen"), (self.journal, "journal"), (self.flip, "flip"), (self.trend, "trend")):
+        for key, b in self.accounts().items():
             b.__dict__.update(s[key])
+            if not s[key].get("started"):
+                b.started = self.meta["started"]
         self.events, self.curve = s.get("events", []), s.get("curve", [])
+
+    @property
+    def books(self):
+        return (self.qwen, self.journal, self.flip, self.trend)
+
+    def accounts(self) -> Dict[str, Book]:
+        return {"qwen": self.qwen, "journal": self.journal, "flip": self.flip, "trend": self.trend}
 
     def save(self, prices) -> None:
         _write(self.data / "books.json", {"meta": self.meta, "qwen": self.qwen.__dict__, "journal": self.journal.__dict__,
@@ -96,6 +106,8 @@ class Paper:
                               "avg_decision_seconds": round(sum(jsecs) / len(jsecs), 2) if jsecs else None},
             "scorecard": scorecard.build(self.journal.trades),
             "journal_recent_trades": (self.journal.trades[-20:])[::-1],
+            "all_recent_trades": sorted((dict(t, book=b.name) for b in self.books for t in b.trades[-30:]),
+                                        key=lambda t: t["closed"], reverse=True)[:30],
             "recent_trades": (self.qwen.trades[-20:])[::-1], "events": self.events[-40:][::-1], "curve": self.curve[-288:],
         })
 
@@ -155,6 +167,8 @@ class Paper:
                            "hold": round(hold, 2)})
 
     def _qwen_round(self, book: Book, m: Dict[str, Any], label: str, record, snaps, atrs, prices, at: str, funding_ok: bool) -> None:
+        if book.paused:
+            return
         pos = book.open_view(prices, datetime.now(AEST))
         got, info = self.decide(snaps, pos) if record is None else self.decide(snaps, pos, track_record=record)
         if got is None:
@@ -169,6 +183,59 @@ class Paper:
         m["last_decision"] = {"at": at, "missed": False, "seconds": info["seconds"], "decisions": got, "result": notes}
         self.log("decision", f"{label}: " + "; ".join(f"{s} {d['action']}" for s, d in got.items())
                  + (" → " + "; ".join(notes) if notes else ""), decisions=got, book=label)
+
+    # ── Markus's buttons (crypto_paper/controls.py) ──
+    def apply(self, cmd: Dict[str, Any], prices) -> None:
+        action, account = cmd.get("action"), cmd.get("account")
+        if action not in controls.ACTIONS or account not in controls.ACCOUNTS:
+            self.log("control", "Ignored a control the bot didn't recognise.")
+            return
+        if time.time() - float(cmd.get("at", 0)) > controls.MAX_AGE_S:
+            self.log("control", f"Ignored an old '{action}' button press (the bot was off when it was sent).")
+            return
+        if action == "decide_now":
+            self.meta["last_decision_slot"] = 0
+            self.log("control", "Markus: decide now. All accounts decide on the next price check.")
+            return
+        if action == "reset" and account == "all":
+            self.reset_all()
+            return
+        targets = self.accounts() if account == "all" else {account: self.accounts()[account]}
+        for key, b in targets.items():
+            if action == "pause":
+                b.paused = True
+            elif action == "resume":
+                b.paused = False
+            elif action == "close_trades":
+                for sym in list(b.positions):
+                    t = b.close(sym, prices, now_iso(), "closed by Markus")
+                    self.log("exit", f"{b.name}: {t['symbol']} {t['side']} closed by Markus ({t['pnl']:+,.2f})", book=b.name)
+            elif action == "reset":
+                self._reset_account(key, b)
+        words = {"pause": "paused (open trades still hit their stop or target)", "resume": "resumed",
+                 "close_trades": "open trades closed", "reset": "reset to $100,000 (old account archived)"}
+        who = "all accounts" if account == "all" else targets[account].name
+        self.log("control", f"Markus: {who} {words[action]}.")
+
+    def _archive(self, label: str, obj: Any) -> None:
+        _write(self.data / "archive" / f"{label}_{int(time.time())}.json", obj)
+
+    def _reset_account(self, key: str, old: Book) -> None:
+        self._archive(key, old.__dict__)
+        setattr(self, key, Book(old.name, started=now_iso()))
+        if key == "qwen":
+            self.meta.update(missed=0, decision_seconds=[], last_decision=None)
+        elif key == "journal":
+            self.meta["journal_brain"] = {"missed": 0, "decision_seconds": [], "last_decision": None}
+
+    def reset_all(self) -> None:
+        self._archive("all", {"meta": self.meta, **{k: b.__dict__ for k, b in self.accounts().items()},
+                              "curve": self.curve})
+        books = self.data / "books.json"
+        if books.exists():
+            os.replace(books, self.data / "archive" / f"books_{int(time.time())}.json")
+        self.__init__(self.data, self.decide, self.mkt)
+        self.log("control", "Markus: everything reset to $100,000, including hold BTC (old record archived).")
 
 
 def _single_instance_lock():
@@ -225,6 +292,11 @@ def main() -> None:
                 return
         try:
             prices = market.book(R.SYMBOLS)
+            for path, cmd in controls.pending(DATA):
+                try:
+                    p.apply(cmd, prices)
+                finally:
+                    controls.file_done(path)
             p.tick(prices)
             slot = int(time.time()) // R.DECISION_SECONDS
             if slot != p.meta["last_decision_slot"]:
