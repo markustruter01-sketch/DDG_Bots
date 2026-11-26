@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.26-journal"
+STUDIO_VERSION = "2026.11.27-crypto3"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 # Bots only see chat history from after the honesty fixes, so old false answers ("full access") are not repeated.
@@ -530,8 +530,9 @@ def make_handler(studio_root: Path, footage_root: Path):
         q, f = st.get("qwen"), st.get("coin_flip")
         if not q:
             return None
-        j = st.get("qwen_journal") or {}
-        return (f"Qwen ${q['equity']:,.2f} ({q['return_pct']:+.2f}%), Qwen + journal ${j.get('equity') or 0:,.2f}, coin flip ${f['equity']:,.2f}, hold BTC "
+        j, tr = st.get("qwen_journal") or {}, st.get("trend_rule") or {}
+        return (f"Qwen ${q['equity']:,.2f} ({q['return_pct']:+.2f}%), Qwen + journal ${j.get('equity') or 0:,.2f}, "
+                f"trend rule ${tr.get('equity') or 0:,.2f}, coin flip ${f['equity']:,.2f}, hold BTC "
                 f"${st.get('hold_btc') or 0:,.2f}; {q['trades']} trades, {st.get('missed', 0)} missed of {st.get('decisions', 0)} decisions"
                 + ("" if st.get("running") else " (bot NOT running now)"))
 
@@ -1492,7 +1493,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                 crypto_facts = ""
                 if bot["name"] == "Plutus":
                     st = _crypto_state()
-                    slim = {k: st.get(k) for k in ("running", "started", "rules_version", "qwen", "qwen_journal", "coin_flip", "hold_btc",
+                    slim = {k: st.get(k) for k in ("running", "started", "rules_version", "pass_bar", "qwen", "qwen_journal", "trend_rule", "coin_flip", "hold_btc",
                                                     "decisions", "missed", "avg_decision_seconds", "last_decision", "journal_brain", "scorecard")}
                     slim["recent_trades"] = (st.get("recent_trades") or [])[:8]
                     crypto_facts = ("You report on the crypto PAPER bot (fake money; Qwen decides, code trades). "

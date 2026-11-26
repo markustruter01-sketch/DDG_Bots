@@ -49,18 +49,37 @@ def ema(xs: List[float], n: int) -> float:
 
 
 def snapshot(symbol: str, mid: float) -> Dict[str, Any]:
-    """What Qwen sees: compact, real numbers only."""
-    m1, m5, h1 = candles(symbol, "1m", 60), candles(symbol, "5m", 60), candles(symbol, "1h", 50)
+    """What Qwen sees: compact, real numbers only. Completed candles only (the one still forming is left out)."""
+    m15, h1, h4 = candles(symbol, "15m", 40)[:-1], candles(symbol, "1h", 80)[:-1], candles(symbol, "4h", 80)[:-1]
+    return build_snapshot(symbol, mid, m15, h1, h4, funding_rate(symbol))
+
+
+def build_snapshot(symbol: str, mid: float, m15, h1, h4, funding: float | None) -> Dict[str, Any]:
     pct = lambda a, b: round((a / b - 1) * 100, 3) if b else 0.0
-    vol5 = [c["v"] for c in m5]
+    c1 = [c["c"] for c in h1]
+    e20, e50 = ema(c1, 20), ema(c1, 50)
+    a1 = atr(h1)
+    vol = [c["v"] for c in h1]
+    avg = sum(vol[-25:-1]) / 24 if len(vol) >= 25 else 0
     return {
         "symbol": symbol, "price": round(mid, 2),
-        "change_pct": {"1m": pct(mid, m1[-2]["c"]), "5m": pct(mid, m5[-2]["c"]), "15m": pct(mid, m5[-4]["c"]),
-                       "1h": pct(mid, h1[-2]["c"]), "24h": pct(mid, h1[-25]["c"]) if len(h1) >= 25 else None},
-        "last_12_closes_5m": [round(c["c"], 2) for c in m5[-12:]],
-        "vs_ema20_5m_pct": pct(mid, ema([c["c"] for c in m5], 20)),
-        "vs_ema50_1h_pct": pct(mid, ema([c["c"] for c in h1], 50)),
-        "volume_5m_vs_avg": round(vol5[-2] / (sum(vol5[-26:-2]) / 24), 2) if sum(vol5[-26:-2]) else None,
-        "atr14_5m": round(atr(m5), 2),
-        "high_low_1h": [round(max(c["h"] for c in m5[-12:]), 2), round(min(c["l"] for c in m5[-12:]), 2)],
+        "change_pct": {"15m": pct(mid, m15[-1]["c"]), "1h": pct(mid, h1[-1]["c"]), "4h": pct(mid, h4[-1]["c"]),
+                       "24h": pct(mid, h1[-24]["c"]) if len(h1) >= 24 else None},
+        "last_8_closes_1h": [round(x, 2) for x in c1[-8:]],
+        "vs_ema20_1h_pct": pct(mid, e20),
+        "vs_ema50_1h_pct": pct(mid, e50),
+        "ema20_vs_ema50_1h_pct": pct(e20, e50),
+        "vs_ema50_4h_pct": pct(mid, ema([c["c"] for c in h4], 50)),
+        "volume_last_1h_vs_24h_avg": round(vol[-1] / avg, 2) if avg else None,
+        "atr14_1h": round(a1, 2),
+        "atr14_1h_pct": round(a1 / mid * 100, 3) if mid else None,
+        "high_low_24h": [round(max(c["h"] for c in h1[-24:]), 2), round(min(c["l"] for c in h1[-24:]), 2)],
+        "funding_rate_pct": round(funding * 100, 4) if funding is not None else None,
     }
+
+
+def trend_rule(snap: Dict[str, Any]) -> str | None:
+    """The plain-code baseline: price above a rising 1h EMA20/EMA50 -> LONG, below a falling one -> SHORT, else nothing."""
+    up = snap["vs_ema20_1h_pct"] > 0 and snap["ema20_vs_ema50_1h_pct"] > 0
+    down = snap["vs_ema20_1h_pct"] < 0 and snap["ema20_vs_ema50_1h_pct"] < 0
+    return "LONG" if up else ("SHORT" if down else None)

@@ -1,9 +1,10 @@
 """Main loop: python -m crypto_paper.runner (from the Bot Studio folder).
 
 Every 2 s: live prices, stops and targets, daily loss stop, funding.
-Every 5 min: Qwen decides, "Qwen + journal" decides (same data plus its own track record), the coin flip
-decides; the curve gets a point.
-Everything is saved, so a restart carries on where it left off.
+Every 15 min: Qwen decides, "Qwen + journal" decides (same data plus its own track record), and the two plain-code
+baselines (coin flip, trend rule) may open a trade if they have none; the curve gets a point.
+Everything is saved, so a restart carries on where it left off. If the bot's own code changes on disk it stops itself,
+and the watchdog starts the new version within a few minutes.
 """
 
 from __future__ import annotations
@@ -46,8 +47,9 @@ def _append(path: Path, obj: Any) -> None:
 class Paper:
     def __init__(self, data: Path = DATA, decide=brain.decide, mkt=market):
         self.data, self.decide, self.mkt = data, decide, mkt
-        self.qwen, self.journal, self.flip = Book("Qwen"), Book("Qwen + journal"), Book("Coin flip")
-        self.books = (self.qwen, self.journal, self.flip)
+        self.qwen, self.journal = Book("Qwen"), Book("Qwen + journal")
+        self.flip, self.trend = Book("Coin flip"), Book("Trend rule")
+        self.books = (self.qwen, self.journal, self.flip, self.trend)
         self.meta: Dict[str, Any] = {"rules_version": R.RULES_VERSION, "started": now_iso(), "hold_btc_start": None,
                                      "decisions": 0, "missed": 0, "decision_seconds": [], "last_funding_slot": "",
                                      "last_decision": None, "last_decision_slot": 0, "funding_unknown": 0,
@@ -66,13 +68,13 @@ class Paper:
             p.rename(self.data / f"books_{int(time.time())}_old_rules.json")   # new rules = fresh record
             return
         self.meta.update(s["meta"])
-        for b, key in ((self.qwen, "qwen"), (self.journal, "journal"), (self.flip, "flip")):
+        for b, key in ((self.qwen, "qwen"), (self.journal, "journal"), (self.flip, "flip"), (self.trend, "trend")):
             b.__dict__.update(s[key])
         self.events, self.curve = s.get("events", []), s.get("curve", [])
 
     def save(self, prices) -> None:
         _write(self.data / "books.json", {"meta": self.meta, "qwen": self.qwen.__dict__, "journal": self.journal.__dict__,
-                                          "flip": self.flip.__dict__,
+                                          "flip": self.flip.__dict__, "trend": self.trend.__dict__,
                                           "events": self.events[-200:], "curve": self.curve[-2000:]})
         btc = prices.get("BTCUSDT") if prices else None
         hold = None
@@ -85,7 +87,8 @@ class Paper:
             "updated_at": now_iso(), "rules_version": R.RULES_VERSION, "started": self.meta["started"],
             "prices": prices, "qwen": self.qwen.summary(prices) if prices else None,
             "qwen_journal": self.journal.summary(prices) if prices else None,
-            "coin_flip": self.flip.summary(prices) if prices else None, "hold_btc": hold,
+            "coin_flip": self.flip.summary(prices) if prices else None,
+            "trend_rule": self.trend.summary(prices) if prices else None, "hold_btc": hold, "pass_bar": R.PASS_BAR,
             "decisions": self.meta["decisions"], "missed": self.meta["missed"],
             "avg_decision_seconds": round(sum(secs) / len(secs), 2) if secs else None,
             "last_decision": self.meta["last_decision"], "funding_unknown": self.meta["funding_unknown"],
@@ -132,24 +135,27 @@ class Paper:
             mid = (prices[sym]["bid"] + prices[sym]["ask"]) / 2
             s = self.mkt.snapshot(sym, mid)
             snaps.append(s)
-            atrs[sym] = s["atr14_5m"]
-        funding_ok = all(self.mkt.funding_rate(s) is not None for s in R.SYMBOLS)
+            atrs[sym] = s["atr14_1h"]
+        funding_ok = all(s.get("funding_rate_pct") is not None for s in snaps)
         self.meta["decisions"] += 1
         # both Qwens see the same market at the same moment; only the journal one also sees its track record
         self._qwen_round(self.qwen, self.meta, "Qwen", None, snaps, atrs, prices, at, funding_ok)
         self._qwen_round(self.journal, self.meta["journal_brain"], "Qwen + journal", scorecard.build(self.journal.trades),
                          snaps, atrs, prices, at, funding_ok)
         rng = random.Random(R.COIN_FLIP_SEED + self.meta["decisions"])
-        for sym in R.SYMBOLS:
-            for n in self.flip.act(sym, rng.choice(["LONG", "SHORT", "FLAT"]), prices, atrs[sym], at, "coin flip", funding_ok):
+        for s in snaps:
+            sym = s["symbol"]
+            for n in self.flip.enter_if_flat(sym, rng.choice(["LONG", "SHORT", None]), prices, atrs[sym], at, "coin flip", funding_ok):
                 self.log("flip", f"Coin flip: {n}", book="Coin flip")
+            for n in self.trend.enter_if_flat(sym, self.mkt.trend_rule(s), prices, atrs[sym], at, "1h EMA20/EMA50 trend", funding_ok):
+                self.log("trend", f"Trend rule: {n}", book="Trend rule")
         hold = R.START_BALANCE * ((prices["BTCUSDT"]["bid"] + prices["BTCUSDT"]["ask"]) / 2) / self.meta["hold_btc_start"]
         self.curve.append({"t": at, "qwen": round(self.qwen.equity(prices), 2), "journal": round(self.journal.equity(prices), 2),
-                           "flip": round(self.flip.equity(prices), 2), "hold": round(hold, 2)})
-
+                           "flip": round(self.flip.equity(prices), 2), "trend": round(self.trend.equity(prices), 2),
+                           "hold": round(hold, 2)})
 
     def _qwen_round(self, book: Book, m: Dict[str, Any], label: str, record, snaps, atrs, prices, at: str, funding_ok: bool) -> None:
-        pos = {s: {"side": p["side"], "entry": p["entry"]} for s, p in book.positions.items()}
+        pos = book.open_view(prices, datetime.now(AEST))
         got, info = self.decide(snaps, pos) if record is None else self.decide(snaps, pos, track_record=record)
         if got is None:
             m["missed"] += 1
@@ -183,6 +189,11 @@ def _single_instance_lock():
     return fh
 
 
+def code_signature() -> float:
+    """Newest change time of the bot's own code; when it moves, the bot restarts into the new version."""
+    return max((f.stat().st_mtime for f in Path(__file__).resolve().parent.glob("*.py")), default=0.0)
+
+
 def _reset_if_asked() -> None:
     """data/crypto/RESET present -> archive the current record and start fresh (used once on 26 Nov)."""
     marker = DATA / "RESET"
@@ -204,7 +215,14 @@ def main() -> None:
     p = Paper()
     p.log("start", f"Crypto paper bot started (rules {R.RULES_VERSION}).")
     prices = None
+    code_at, last_code_check = code_signature(), time.time()
     while True:
+        if time.time() - last_code_check > 30:
+            last_code_check = time.time()
+            if code_signature() != code_at:
+                p.log("update", "Bot code updated on disk: stopping so the watchdog starts the new version.")
+                lock.close()
+                return
         try:
             prices = market.book(R.SYMBOLS)
             p.tick(prices)

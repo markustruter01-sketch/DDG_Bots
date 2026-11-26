@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from . import rules as R
@@ -115,17 +116,38 @@ class Book:
 
     def act(self, sym: str, action: str, prices, atr: float, at: str, reason: str, funding_ok: bool,
             play: str = "NONE", confidence: Optional[float] = None) -> List[str]:
-        """LONG / SHORT / FLAT. Same side already open = hold."""
+        """LONG / SHORT open (or keep the same side; the other side is closed first). WAIT keeps everything. CLOSE exits."""
         notes = []
         cur = self.positions.get(sym)
-        if cur and (action == "FLAT" or action != cur["side"]):
-            t = self.close(sym, prices, at, "decision " + action)
+        if cur and (action == "CLOSE" or (action in ("LONG", "SHORT") and action != cur["side"])):
+            t = self.close(sym, prices, at, "closed by decision" if action == "CLOSE" else "reversed to " + action)
             notes.append(f"closed {sym} {t['side']} ({t['pnl']:+,.2f})")
         if action in ("LONG", "SHORT") and sym not in self.positions:
             o = self.open(sym, action, prices, atr, at, reason, funding_ok, play, confidence)
             if o:
                 notes.append("opened " + o)
         return notes
+
+    def enter_if_flat(self, sym: str, side: Optional[str], prices, atr: float, at: str, reason: str, funding_ok: bool) -> List[str]:
+        """Baselines: open only when nothing is open; exits are only the stop, the target or the daily stop."""
+        if side not in ("LONG", "SHORT") or sym in self.positions:
+            return []
+        o = self.open(sym, side, prices, atr, at, reason, funding_ok)
+        return ["opened " + o] if o else []
+
+    def open_view(self, prices, now) -> Dict[str, Dict[str, Any]]:
+        """What Qwen is told about its own open trades."""
+        out = {}
+        for s, p in self.positions.items():
+            mid = (prices[s]["bid"] + prices[s]["ask"]) / 2
+            sign = 1 if p["side"] == "LONG" else -1
+            try:
+                mins = round((now - datetime.fromisoformat(p["opened"])).total_seconds() / 60)
+            except (TypeError, ValueError):
+                mins = None
+            out[s] = {"side": p["side"], "entry": round(p["entry"], 2), "stop": round(p["stop"], 2), "target": round(p["target"], 2),
+                      "open_pct_before_exit_fee": round((mid / p["entry"] - 1) * 100 * sign, 3), "minutes_open": mins}
+        return out
 
     def summary(self, prices) -> Dict[str, Any]:
         eq = self.equity(prices)

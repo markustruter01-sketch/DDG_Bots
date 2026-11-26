@@ -35,7 +35,7 @@ def build(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     groups: Dict[str, Dict[str, List]] = {"by_side": {}, "by_play": {}, "by_exit": {}, "by_confidence": {}}
     for t in trades:
         why = t.get("why", "")
-        exit_kind = "stop" if why == "stop" else ("target" if why == "target" else ("daily loss stop" if why == "daily loss stop" else "your own decision"))
+        exit_kind = why if why in ("stop", "target", "daily loss stop") else ("you reversed it" if why.startswith("reversed") else "you closed it")
         for g, key in (("by_side", t.get("side")), ("by_play", t.get("play", "NONE")),
                        ("by_exit", exit_kind), ("by_confidence", _conf_bucket(t.get("confidence")))):
             groups[g].setdefault(str(key), []).append(t)

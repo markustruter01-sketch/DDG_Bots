@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from crypto_paper import brain  # noqa: E402
+from crypto_paper import brain, market  # noqa: E402
 from crypto_paper import rules as R  # noqa: E402
 from crypto_paper.book import Book  # noqa: E402
 from crypto_paper.runner import Paper  # noqa: E402
@@ -23,11 +23,14 @@ def px(btc_bid, btc_ask, eth_bid=3000.0, eth_ask=3000.5):
 class FakeMarket:
     @staticmethod
     def snapshot(sym, mid):
-        return {"symbol": sym, "price": mid, "atr14_5m": 100.0 if sym == "BTCUSDT" else 5.0}
+        return {"symbol": sym, "price": mid, "atr14_1h": 100.0 if sym == "BTCUSDT" else 5.0, "funding_rate_pct": 0.01,
+                "vs_ema20_1h_pct": 0.5, "ema20_vs_ema50_1h_pct": 0.2 if sym == "BTCUSDT" else -0.2}
 
     @staticmethod
     def funding_rate(sym):
         return 0.0001
+
+    trend_rule = staticmethod(market.trend_rule)
 
 
 class TestBook(unittest.TestCase):
@@ -84,15 +87,56 @@ class TestBook(unittest.TestCase):
         self.assertFalse(b.positions["BTCUSDT"]["funding_known"])
 
 
+class TestActions(unittest.TestCase):
+    def test_wait_keeps_close_exits_reverse_flips(self) -> None:
+        b, p = Book("t"), px(60000, 60010)
+        b.act("BTCUSDT", "LONG", p, 100, "t0", "r", True)
+        self.assertEqual(b.act("BTCUSDT", "WAIT", p, 100, "t1", "r", True), [])
+        self.assertIn("BTCUSDT", b.positions)
+        self.assertEqual(b.act("BTCUSDT", "LONG", p, 100, "t2", "r", True), [])     # same side = keep, no new fee
+        notes = b.act("BTCUSDT", "SHORT", p, 100, "t3", "r", True)
+        self.assertEqual(b.positions["BTCUSDT"]["side"], "SHORT")
+        self.assertEqual(len(notes), 2)
+        self.assertEqual(b.trades[-1]["why"], "reversed to SHORT")
+        b.act("BTCUSDT", "CLOSE", p, 100, "t4", "r", True)
+        self.assertEqual(b.positions, {})
+        self.assertEqual(b.trades[-1]["why"], "closed by decision")
+        self.assertEqual(b.act("BTCUSDT", "CLOSE", p, 100, "t5", "r", True), [])    # nothing open: nothing happens
+
+    def test_baselines_only_enter_when_flat(self) -> None:
+        b, p = Book("t"), px(60000, 60010)
+        self.assertEqual(len(b.enter_if_flat("BTCUSDT", "LONG", p, 100, "t0", "r", True)), 1)
+        self.assertEqual(b.enter_if_flat("BTCUSDT", "SHORT", p, 100, "t1", "r", True), [])
+        self.assertEqual(b.positions["BTCUSDT"]["side"], "LONG")
+        self.assertEqual(b.enter_if_flat("ETHUSDT", None, p, 5, "t2", "r", True), [])
+
+    def test_trend_rule(self) -> None:
+        self.assertEqual(market.trend_rule({"vs_ema20_1h_pct": 0.3, "ema20_vs_ema50_1h_pct": 0.1}), "LONG")
+        self.assertEqual(market.trend_rule({"vs_ema20_1h_pct": -0.3, "ema20_vs_ema50_1h_pct": -0.1}), "SHORT")
+        self.assertIsNone(market.trend_rule({"vs_ema20_1h_pct": 0.3, "ema20_vs_ema50_1h_pct": -0.1}))
+
+    def test_snapshot_from_candles(self) -> None:
+        mk = lambda n, step: [{"t": i, "o": 100 + i * step, "h": 101 + i * step, "l": 99 + i * step, "c": 100 + i * step, "v": 10.0}
+                              for i in range(n)]
+        snap = market.build_snapshot("BTCUSDT", 200.0, mk(39, 1), mk(79, 1), mk(79, 4), 0.0001)
+        self.assertEqual(len(snap["last_8_closes_1h"]), 8)
+        self.assertGreater(snap["ema20_vs_ema50_1h_pct"], 0)                      # steady rise -> EMA20 above EMA50
+        self.assertEqual(snap["funding_rate_pct"], 0.01)
+        self.assertGreater(snap["atr14_1h"], 0)
+        self.assertEqual(market.trend_rule(snap), "LONG")
+
+
 class TestBrain(unittest.TestCase):
     def test_parse_strict(self) -> None:
         ok = json.dumps({"decisions": [{"symbol": "BTCUSDT", "action": "LONG", "play": "TREND", "confidence": 2, "reason": "x"},
-                                       {"symbol": "ETHUSDT", "action": "FLAT", "play": "NONE", "confidence": 0.1, "reason": "y"}]})
+                                       {"symbol": "ETHUSDT", "action": "WAIT", "play": "NONE", "confidence": 0.1, "reason": "y"}]})
         got = brain.parse(ok)
         self.assertEqual(got["BTCUSDT"]["action"], "LONG")
         self.assertEqual(got["BTCUSDT"]["confidence"], 1.0)
         self.assertIsNone(brain.parse('{"decisions":[{"symbol":"BTCUSDT","action":"LONG"}]}'))   # ETH missing
         self.assertIsNone(brain.parse("BUY BTC NOW"))
+        old = json.dumps({"decisions": [{"symbol": "BTCUSDT", "action": "FLAT"}, {"symbol": "ETHUSDT", "action": "CLOSE"}]})
+        self.assertIsNone(brain.parse(old))                                       # FLAT no longer exists (v3)
         self.assertIsNone(brain.parse('{"decisions":[{"symbol":"BTCUSDT","action":"YOLO"},{"symbol":"ETHUSDT","action":"FLAT"}]}'))
 
 
@@ -105,11 +149,13 @@ class TestRunner(unittest.TestCase):
 
     def test_round_missed_flip_and_restart(self) -> None:
         go = {"BTCUSDT": {"action": "LONG", "play": "TREND", "confidence": .6, "reason": "up"},
-              "ETHUSDT": {"action": "FLAT", "play": "NONE", "confidence": .2, "reason": "flat"}}
-        answers = [None, None, go, go]                                            # two Qwen calls per round
-        seen = []
+              "ETHUSDT": {"action": "WAIT", "play": "NONE", "confidence": .2, "reason": "wait"}}
+        wait = {"BTCUSDT": dict(go["BTCUSDT"], action="WAIT"), "ETHUSDT": go["ETHUSDT"]}
+        answers = [None, None, go, go, wait, wait]                                # two Qwen calls per round
+        seen, seen_pos = [], []
         def fake_decide(snaps, pos, track_record=None):
             seen.append(track_record)
+            seen_pos.append(pos)
             a = answers.pop(0)
             return (a, {"seconds": 0.5}) if a else (None, {"seconds": 60, "error": "timeout"})
         p = Paper(self.tmp, decide=fake_decide, mkt=FakeMarket)
@@ -124,11 +170,19 @@ class TestRunner(unittest.TestCase):
         self.assertEqual(p.journal.positions["BTCUSDT"]["play"], "TREND")
         self.assertIsNone(seen[0])                                                # plain Qwen never sees a track record
         self.assertIsInstance(seen[1], dict)                                      # the journal one always does
-        self.assertEqual(len(p.curve), 2)
+        p.decision_round(prices)                                                  # WAIT keeps the trade open (v3 fix)
+        self.assertIn("BTCUSDT", p.qwen.positions)
+        self.assertEqual(seen_pos[-1]["BTCUSDT"]["side"], "LONG")                 # Qwen is told its stop and target
+        self.assertIn("stop", seen_pos[-1]["BTCUSDT"])
+        self.assertIn("BTCUSDT", p.trend.positions)                               # trend rule: BTC up -> LONG
+        self.assertEqual(p.trend.positions["BTCUSDT"]["side"], "LONG")
+        self.assertNotIn("ETHUSDT", p.trend.positions)                            # ETH signals disagree -> trend rule stays out
+        self.assertEqual(len(p.curve), 3)
         self.assertIn("journal", p.curve[-1])
+        self.assertIn("trend", p.curve[-1])
         p.save(prices)
         state = json.loads((self.tmp / "state.json").read_text())
-        self.assertEqual(state["decisions"], 2)
+        self.assertEqual(state["decisions"], 3)
         self.assertEqual(state["missed"], 1)
         self.assertEqual(state["hold_btc"], R.START_BALANCE)
         self.assertEqual(state["qwen_journal"]["name"], "Qwen + journal")
@@ -136,10 +190,12 @@ class TestRunner(unittest.TestCase):
         again = Paper(self.tmp, decide=fake_decide, mkt=FakeMarket)                 # restart carries on
         self.assertIn("BTCUSDT", again.qwen.positions)
         self.assertIn("BTCUSDT", again.journal.positions)
-        self.assertEqual(again.meta["decisions"], 2)
+        self.assertEqual(again.meta["decisions"], 3)
+        self.assertEqual(state["trend_rule"]["name"], "Trend rule")
+        self.assertIn("200", state["pass_bar"])
 
     def test_old_rules_record_is_archived_not_mixed(self) -> None:
-        (self.tmp / "books.json").write_text(json.dumps({"meta": {"rules_version": "v1 · 2026-11-26"}}))
+        (self.tmp / "books.json").write_text(json.dumps({"meta": {"rules_version": "v2 · 2026-11-26"}}))
         p = Paper(self.tmp, decide=lambda *a, **k: (None, {}), mkt=FakeMarket)
         self.assertEqual(p.meta["decisions"], 0)
         self.assertEqual(len(list(self.tmp.glob("books_*_old_rules.json"))), 1)

@@ -39,11 +39,18 @@ If the studio was off at a routine's time, it runs when the studio comes back wi
 *missed*. Results show on *Schedules & System*.
 
 ## The crypto paper bot
-Fake money (US$100,000 start). Live Binance prices for BTC and ETH. Every 5 minutes Qwen says LONG, SHORT or FLAT for each;
-code sizes the trade (0.5% of the account at risk), sets a stop and target, charges Binance's 0.05% fee and the spread,
-and closes everything for the day after a 3% daily loss. A coin flip runs under the same rules, and "hold BTC" shows what
-doing nothing would have made. If Qwen is late or answers badly (for example while you're gaming), that decision counts
-as missed. Plutus can answer questions about it, quoting only the live numbers.
+Fake money (US$100,000 start each). Live Binance prices for BTC and ETH. Rules v3 (27 Nov):
+- Every 15 minutes Qwen picks LONG, SHORT, WAIT (keep things as they are) or CLOSE for each coin, from 15-minute,
+  1-hour and 4-hour data. Code sizes the trade (0.5% of the account at risk), sets the stop (1.5x 1-hour ATR) and target
+  (2.5x), charges Binance's 0.05% fee and the spread, and closes everything for the day after a 3% daily loss.
+- "Qwen + journal" does the same, plus it sees code-counted results of its own closed trades (numbers only after 30).
+- Baselines: a coin flip and a plain-code trend rule (1-hour EMA20/EMA50), both entering only when flat and exiting only
+  at stop or target; plus "hold BTC". If Qwen can't beat the trend rule, use the rule.
+- Pass bar (written before results): see `PASS_BAR` in `crypto_paper/rules.py`.
+- If the bot's own code changes, it stops itself and the watchdog starts the new version within a few minutes.
+- If Qwen is late or answers badly (for example while you're gaming), that decision counts as missed.
+- Why v3: on the first night (v1) FLAT closed every trade 5 minutes later and fees ate the account (Qwen -4.83%,
+  coin flip -6.23%, hold BTC +0.39%, 26-27 Nov). Plutus can answer questions about it, quoting only the live numbers.
 
 ## Backups
 - `F:\Backups\DDG_Local_Bot_Studio_2026-11-26_before_Claude.zip` — the studio as it was before 26 Nov's work.

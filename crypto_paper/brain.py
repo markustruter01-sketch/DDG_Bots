@@ -9,28 +9,33 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import rules as R
 
+ACTIONS = ("LONG", "SHORT", "WAIT", "CLOSE")
+
 SYSTEM = (
-    "You are Plutus, a crypto trader in a PAPER-MONEY research test (no real money). Every 5 minutes you see live data "
-    "for BTC and ETH and decide for each: LONG, SHORT or FLAT for the next 5 minutes or more. Code sets the size, the stop "
-    "and the profit target; fees are charged on every trade, so trading too often costs money. FLAT is a fine answer. "
-    "Use only the numbers given. Reply with JSON only."
-)
-JOURNAL_NOTE = (
-    " You also get your_track_record: counts from your own closed trades in this test, worked out by code. "
-    "Use it to avoid repeating what has lost money and to lean on what has worked, but only for groups that show "
-    "numbers; groups marked 'too few to judge' are luck. Market data still comes first."
+    "You are Plutus, a crypto trader in a PAPER-MONEY research test (no real money). Every 15 minutes you see live data "
+    "for BTC and ETH and choose one action for each coin: LONG (buy, or keep a long), SHORT (sell short, or keep a short), "
+    "WAIT (open nothing new and keep any open trade as it is) or CLOSE (exit the open trade now). Code sets the size, the "
+    "stop (1.5 x the 1-hour ATR) and the profit target (2.5 x the 1-hour ATR); most trades should end at one of those, "
+    "which can take hours. Fees are charged on every entry and exit, so trading often costs money. WAIT is a good answer "
+    "most of the time. Only open a trade when the 1-hour and 4-hour picture clearly supports it; SHORT is as valid as LONG "
+    "when they point down. Use only the numbers given. Reply with JSON only."
 )
 SCHEMA = {
     "type": "object",
     "properties": {"decisions": {"type": "array", "items": {"type": "object", "properties": {
         "symbol": {"type": "string", "enum": list(R.SYMBOLS)},
-        "action": {"type": "string", "enum": ["LONG", "SHORT", "FLAT"]},
+        "action": {"type": "string", "enum": list(ACTIONS)},
         "play": {"type": "string", "enum": ["TREND", "FADE", "NONE"]},
         "confidence": {"type": "number"},
         "reason": {"type": "string"}},
         "required": ["symbol", "action", "play", "confidence", "reason"]}}},
     "required": ["decisions"],
 }
+JOURNAL_NOTE = (
+    " You also get your_track_record: counts from your own closed trades in this test, worked out by code. "
+    "Use it to avoid repeating what has lost money and to lean on what has worked, but only for groups that show "
+    "numbers; groups marked 'too few to judge' are luck. Market data still comes first."
+)
 
 
 def parse(text: str) -> Optional[Dict[str, Dict[str, Any]]]:
@@ -40,7 +45,7 @@ def parse(text: str) -> Optional[Dict[str, Dict[str, Any]]]:
         out = {}
         for d in data["decisions"]:
             sym, act = d["symbol"], d["action"]
-            if sym in R.SYMBOLS and act in ("LONG", "SHORT", "FLAT"):
+            if sym in R.SYMBOLS and act in ACTIONS:
                 out[sym] = {"action": act, "play": d.get("play", "NONE"),
                             "confidence": max(0.0, min(1.0, float(d.get("confidence", 0)))),
                             "reason": str(d.get("reason", ""))[:400]}
