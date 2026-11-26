@@ -6,3 +6,4 @@ data/
 assets/fonts/
 *.sqlite3
 .env
+config/private_terms.json

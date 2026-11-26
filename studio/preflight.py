@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,17 @@ from .models import (
 from .night_glass_gfx import contains_emoji
 from .transcribe import audit_transcript_holes
 
+
+
+PRIVATE_TERMS_FILE = Path(__file__).resolve().parent.parent / "config" / "private_terms.json"
+
+
+def private_sensitive_terms() -> list[str]:
+    """Personal words to blur (name, suburb, postcode). Kept only on Markus's PC, never in the public repo."""
+    try:
+        return [str(t) for t in json.loads(PRIVATE_TERMS_FILE.read_text(encoding="utf-8")).get("sensitive_terms", [])]
+    except (OSError, ValueError, AttributeError):
+        return []
 
 def _check_g0_numbers(plan: EditPlan, numbers_check_log_path: str | Path | None = None) -> GateResult:
     if plan.hud is None:
@@ -328,7 +340,7 @@ def run_preflight(
             min_sigma=rules["G8_G8b_blurs_and_ocr"]["blur_sigma_min"],
             min_downscale=rules["G8_G8b_blurs_and_ocr"]["downscale_factor"],
             ocr_texts_after_blur=ocr_texts_after_blur,
-            sensitive_terms=rules["G8_G8b_blurs_and_ocr"]["sensitive_terms"],
+            sensitive_terms=rules["G8_G8b_blurs_and_ocr"]["sensitive_terms"] + private_sensitive_terms(),
             sensitive_regexes=rules["G8_G8b_blurs_and_ocr"]["sensitive_ocr_regexes"],
             frame_blur_presence=frame_blur_presence,
         )

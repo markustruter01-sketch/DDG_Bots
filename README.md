@@ -1,27 +1,31 @@
-# DDG Local Bot Studio (A$0/Month Self-Hosted Video & Bot Suite)
+# DDG Bots — Local Bot Studio
 
-Completely standalone and **100% isolated** from all live DDG GitHub repositories (`Doomsday Daycare`, `DDG_GodsEyeView`, `LOADMWorkflow`, `quant-terminal`, `DDG-Hypest`, `ddg-control`, `cattle-dog-coffee`).
+The bot team for Digital Dynamics Group (DDG), running on one Windows PC with a free local AI model (Qwen through Ollama).
+No cloud AI bills, no data leaving the PC.
 
-## Quickstart (5 Minutes)
-1. **Install local free AI + Python accelerators (one-time):**
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File "C:\Users\User\Desktop\DDG\DDG_Local_Bot_Studio\scripts\setup_local_env.ps1"
-   ```
-2. **Copy your supplied official brand media into `assets\`:**
-   - `DDG Intro 15s (Share).mp4`
-   - `DDG Reel Outro 3s (1080x1920).mp4`
-   - `DDG Site Loader 5s (1920x1080).webm`
-   - `freya_avatar_white.png` *(already faces left — never flip)*
-   - *(Already copied cleanly: `DDG_Logo_New.png` & `Threads_of_Empire_Cover_1_Percent_v01.png`)*
-3. **Launch Dashboard + Inbox Watcher:**
-   Run `scripts\run_studio.bat`, then open `http://127.0.0.1:8765` in your browser.
-4. **Daily Workflow:**
-   - Drop raw Streamlabs 1080p60 recordings into **`F:\DDG_Video_Studio\01_Raw_Inbox\`**.
-   - Studio automatically pauses whenever `UnrealEditor.exe` or `Streamlabs Desktop.exe` is running.
-   - Review the fast low-res preview, `G0–G11` preflight gates, before/after blur strips, and draft YT/X/IG copy at `http://127.0.0.1:8765`.
-   - Click **Approve Export** (blocked automatically if ANY preflight gate failed!).
+**What it does**
+- **DDG employees:** a team of bots that chat, write daily briefs and run scheduled routines from real studio facts only.
+- **Tidy up your PC (carefully):** bots can look at folders and *propose* clean-up plans. Nothing moves until Markus
+  approves in the dashboard, every move can be undone, and "delete" means move to quarantine, never real deletion.
+  System, secret and backup folders are always blocked.
+- **Crypto paper trading (fake money only):** Qwen trades BTC and ETH with fake US$100,000 against a coin flip,
+  a plain trend rule and simply holding BTC. No exchange account, no keys, no real orders.
+- **Video studio:** checks and edits DDG videos against the house rules (G0–G11), blurring private details.
+- **Dashboard:** `http://127.0.0.1:8765`, only reachable from the PC itself and locked with a per-launch session token.
 
-## Run Tests Anytime
-```powershell
-python -m unittest discover -s "C:\Users\User\Desktop\DDG\DDG_Local_Bot_Studio\tests" -v
-```
+**Start here**
+- `docs/HOW-IT-WORKS.md` — plain-English guide.
+- `docs/PLAN.md` and `docs/AUDIT-2026-11-26.md` — the plan and the audit behind it.
+- `AGENTS.md` — rules any AI working on this code must follow.
+
+**Run it (Windows, Python 3.12)**
+1. `powershell -ExecutionPolicy Bypass -File scripts\setup_local_env.ps1` (one time: Ollama, models, Python packages).
+2. Double-click `Restart DDG Bot Studio.bat`, then open `http://127.0.0.1:8765`.
+3. Optional: `Install Always-On.bat` starts it at login and checks on it every 5 minutes.
+
+**Private files (not in this repo)**
+`data/`, `logs/`, `.env` and `config/private_terms.json` (personal words the video blur must hide; see
+`config/private_terms.example.json`) stay on the PC.
+
+**Tests**
+`python -m unittest tests.test_security tests.test_pc_worker tests.test_bot_tools tests.test_routines tests.test_crypto_paper`
