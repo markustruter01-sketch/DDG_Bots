@@ -104,9 +104,12 @@ class TestRunner(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_round_missed_flip_and_restart(self) -> None:
-        answers = [None, {"BTCUSDT": {"action": "LONG", "play": "TREND", "confidence": .6, "reason": "up"},
-                          "ETHUSDT": {"action": "FLAT", "play": "NONE", "confidence": .2, "reason": "flat"}}]
-        def fake_decide(snaps, pos):
+        go = {"BTCUSDT": {"action": "LONG", "play": "TREND", "confidence": .6, "reason": "up"},
+              "ETHUSDT": {"action": "FLAT", "play": "NONE", "confidence": .2, "reason": "flat"}}
+        answers = [None, None, go, go]                                            # two Qwen calls per round
+        seen = []
+        def fake_decide(snaps, pos, track_record=None):
+            seen.append(track_record)
             a = answers.pop(0)
             return (a, {"seconds": 0.5}) if a else (None, {"seconds": 60, "error": "timeout"})
         p = Paper(self.tmp, decide=fake_decide, mkt=FakeMarket)
@@ -114,17 +117,63 @@ class TestRunner(unittest.TestCase):
         p.tick(prices)
         p.decision_round(prices)
         self.assertEqual(p.meta["missed"], 1)
+        self.assertEqual(p.meta["journal_brain"]["missed"], 1)
         p.decision_round(prices)
         self.assertIn("BTCUSDT", p.qwen.positions)
+        self.assertIn("BTCUSDT", p.journal.positions)
+        self.assertEqual(p.journal.positions["BTCUSDT"]["play"], "TREND")
+        self.assertIsNone(seen[0])                                                # plain Qwen never sees a track record
+        self.assertIsInstance(seen[1], dict)                                      # the journal one always does
         self.assertEqual(len(p.curve), 2)
+        self.assertIn("journal", p.curve[-1])
         p.save(prices)
         state = json.loads((self.tmp / "state.json").read_text())
         self.assertEqual(state["decisions"], 2)
         self.assertEqual(state["missed"], 1)
         self.assertEqual(state["hold_btc"], R.START_BALANCE)
+        self.assertEqual(state["qwen_journal"]["name"], "Qwen + journal")
+        self.assertEqual(state["scorecard"]["closed_trades"], 0)
         again = Paper(self.tmp, decide=fake_decide, mkt=FakeMarket)                 # restart carries on
         self.assertIn("BTCUSDT", again.qwen.positions)
+        self.assertIn("BTCUSDT", again.journal.positions)
         self.assertEqual(again.meta["decisions"], 2)
+
+    def test_old_rules_record_is_archived_not_mixed(self) -> None:
+        (self.tmp / "books.json").write_text(json.dumps({"meta": {"rules_version": "v1 · 2026-11-26"}}))
+        p = Paper(self.tmp, decide=lambda *a, **k: (None, {}), mkt=FakeMarket)
+        self.assertEqual(p.meta["decisions"], 0)
+        self.assertEqual(len(list(self.tmp.glob("books_*_old_rules.json"))), 1)
+
+
+class TestScorecard(unittest.TestCase):
+    @staticmethod
+    def trade(pnl, side="LONG", play="TREND", why="stop", conf=0.6):
+        return {"symbol": "BTCUSDT", "side": side, "play": play, "why": why, "confidence": conf,
+                "qty": 1.0, "entry": 1000.0, "pnl": pnl}
+
+    def test_no_numbers_below_min_sample(self) -> None:
+        from crypto_paper import scorecard
+        card = scorecard.build([self.trade(5)] * (R.MIN_SAMPLE - 1))
+        self.assertNotIn("win_rate_pct", card["all"])
+        self.assertNotIn("win_rate_pct", card["by_side"]["LONG"])
+        self.assertIn("too few", card["all"]["note"])
+
+    def test_numbers_at_min_sample(self) -> None:
+        from crypto_paper import scorecard
+        trades = [self.trade(10)] * 10 + [self.trade(-5)] * (R.MIN_SAMPLE - 10) + [self.trade(1, side="SHORT", play="FADE", why="target")]
+        card = scorecard.build(trades)
+        longs = card["by_side"]["LONG"]
+        self.assertEqual(longs["trades"], R.MIN_SAMPLE)
+        self.assertAlmostEqual(longs["win_rate_pct"], round(10 / R.MIN_SAMPLE * 100, 1))
+        self.assertAlmostEqual(longs["total_usd"], 10 * 10 - 5 * (R.MIN_SAMPLE - 10))
+        self.assertNotIn("win_rate_pct", card["by_side"]["SHORT"])            # 1 short = luck, no numbers
+        self.assertIn("target", card["by_exit"])
+
+    def test_closed_trade_keeps_play_and_confidence(self) -> None:
+        b = Book("t")
+        b.act("BTCUSDT", "LONG", px(60000, 60010), 100, "t0", "r", True, "FADE", 0.8)
+        t = b.close("BTCUSDT", px(60000, 60010), "t1", "test")
+        self.assertEqual((t["play"], t["confidence"]), ("FADE", 0.8))
 
 
 class TestSingleInstance(unittest.TestCase):

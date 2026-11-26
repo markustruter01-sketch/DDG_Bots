@@ -1,6 +1,6 @@
 """The written-down rules. Changing any value means a new RULES_VERSION and a fresh record."""
 
-RULES_VERSION = "v1 · 2026-11-26"
+RULES_VERSION = "v2 · 2026-11-26"           # v2: added the "Qwen + journal" account (all three restart together)
 START_BALANCE = 100_000.0           # fake US dollars
 SYMBOLS = ("BTCUSDT", "ETHUSDT")
 TICK_SECONDS = 2                    # price check (stops and targets)
@@ -18,3 +18,4 @@ MODEL = "qwen3:8b"
 KEEP_ALIVE = "30m"                  # keep Qwen loaded between decisions (a cold start took ~28 s on 26 Nov)
 DECISION_TIMEOUT_S = 60
 COIN_FLIP_SEED = 20261126
+MIN_SAMPLE = 30                     # "Qwen + journal" sees a group's numbers only after this many closed trades (my choice, not a standard)

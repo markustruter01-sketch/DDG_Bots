@@ -15,6 +15,11 @@ SYSTEM = (
     "and the profit target; fees are charged on every trade, so trading too often costs money. FLAT is a fine answer. "
     "Use only the numbers given. Reply with JSON only."
 )
+JOURNAL_NOTE = (
+    " You also get your_track_record: counts from your own closed trades in this test, worked out by code. "
+    "Use it to avoid repeating what has lost money and to lean on what has worked, but only for groups that show "
+    "numbers; groups marked 'too few to judge' are luck. Market data still comes first."
+)
 SCHEMA = {
     "type": "object",
     "properties": {"decisions": {"type": "array", "items": {"type": "object", "properties": {
@@ -44,12 +49,17 @@ def parse(text: str) -> Optional[Dict[str, Dict[str, Any]]]:
         return None
 
 
-def decide(snapshots: List[Dict[str, Any]], positions: Dict[str, Any], base_url: str = "http://127.0.0.1:11434") -> Tuple[Optional[Dict], Dict[str, Any]]:
-    """Returns (decisions or None, info with timing and any error)."""
-    user = json.dumps({"market": snapshots, "your_open_positions": positions}, ensure_ascii=False)
+def decide(snapshots: List[Dict[str, Any]], positions: Dict[str, Any], base_url: str = "http://127.0.0.1:11434",
+           track_record: Optional[Dict[str, Any]] = None) -> Tuple[Optional[Dict], Dict[str, Any]]:
+    """Returns (decisions or None, info with timing and any error). track_record given = the journal version."""
+    payload: Dict[str, Any] = {"market": snapshots, "your_open_positions": positions}
+    if track_record is not None:
+        payload["your_track_record"] = track_record
+    user = json.dumps(payload, ensure_ascii=False)
+    system = SYSTEM + (JOURNAL_NOTE if track_record is not None else "")
     body = {"model": R.MODEL, "stream": False, "think": False, "keep_alive": R.KEEP_ALIVE, "format": SCHEMA,
             "options": {"temperature": 0.3, "num_ctx": 8192},
-            "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]}
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
     t0 = time.time()
     try:
         req = urllib.request.Request(f"{base_url}/api/chat", data=json.dumps(body).encode("utf-8"),

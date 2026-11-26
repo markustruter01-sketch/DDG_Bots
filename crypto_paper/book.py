@@ -46,7 +46,8 @@ class Book:
         return None
 
     # ── trading ──
-    def open(self, sym: str, side: str, prices, atr: float, at: str, reason: str, funding_ok: bool) -> Optional[str]:
+    def open(self, sym: str, side: str, prices, atr: float, at: str, reason: str, funding_ok: bool,
+             play: str = "NONE", confidence: Optional[float] = None) -> Optional[str]:
         if self.locked_today or sym in self.positions or atr <= 0:
             return None
         eq = self.equity(prices)
@@ -66,7 +67,8 @@ class Book:
         sign = 1 if side == "LONG" else -1
         self.positions[sym] = {"side": side, "qty": qty, "entry": px, "opened": at, "reason": reason,
                                "stop": px - sign * stop_dist, "target": px + sign * R.TARGET_ATR * atr,
-                               "fees": fee, "funding": 0.0, "funding_known": funding_ok}
+                               "fees": fee, "funding": 0.0, "funding_known": funding_ok,
+                               "play": play, "confidence": confidence}
         return f"{side} {sym} {qty:.4f} @ {px:,.2f}"
 
     def close(self, sym: str, prices, at: str, why: str) -> Optional[Dict[str, Any]]:
@@ -81,7 +83,8 @@ class Book:
         self.fees += fee
         t = {"symbol": sym, "side": p["side"], "qty": p["qty"], "entry": p["entry"], "exit": px, "opened": p["opened"],
              "closed": at, "why": why, "reason": p["reason"], "fees": p["fees"] + fee, "funding": p["funding"],
-             "funding_known": p["funding_known"], "pnl": gross - p["fees"] - fee - p["funding"]}
+             "funding_known": p["funding_known"], "play": p.get("play", "NONE"),
+             "confidence": p.get("confidence"), "pnl": gross - p["fees"] - fee - p["funding"]}
         self.trades.append(t)
         return t
 
@@ -110,7 +113,8 @@ class Book:
         self.cash -= cost
         self.funding += cost
 
-    def act(self, sym: str, action: str, prices, atr: float, at: str, reason: str, funding_ok: bool) -> List[str]:
+    def act(self, sym: str, action: str, prices, atr: float, at: str, reason: str, funding_ok: bool,
+            play: str = "NONE", confidence: Optional[float] = None) -> List[str]:
         """LONG / SHORT / FLAT. Same side already open = hold."""
         notes = []
         cur = self.positions.get(sym)
@@ -118,7 +122,7 @@ class Book:
             t = self.close(sym, prices, at, "decision " + action)
             notes.append(f"closed {sym} {t['side']} ({t['pnl']:+,.2f})")
         if action in ("LONG", "SHORT") and sym not in self.positions:
-            o = self.open(sym, action, prices, atr, at, reason, funding_ok)
+            o = self.open(sym, action, prices, atr, at, reason, funding_ok, play, confidence)
             if o:
                 notes.append("opened " + o)
         return notes

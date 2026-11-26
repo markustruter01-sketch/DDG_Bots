@@ -1,7 +1,8 @@
 """Main loop: python -m crypto_paper.runner (from the Bot Studio folder).
 
 Every 2 s: live prices, stops and targets, daily loss stop, funding.
-Every 5 min: Qwen decides; the coin flip decides; the curve gets a point.
+Every 5 min: Qwen decides, "Qwen + journal" decides (same data plus its own track record), the coin flip
+decides; the curve gets a point.
 Everything is saved, so a restart carries on where it left off.
 """
 
@@ -16,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict
 
-from . import brain, market
+from . import brain, market, scorecard
 from . import rules as R
 from .book import Book
 
@@ -45,10 +46,12 @@ def _append(path: Path, obj: Any) -> None:
 class Paper:
     def __init__(self, data: Path = DATA, decide=brain.decide, mkt=market):
         self.data, self.decide, self.mkt = data, decide, mkt
-        self.qwen, self.flip = Book("Qwen"), Book("Coin flip")
+        self.qwen, self.journal, self.flip = Book("Qwen"), Book("Qwen + journal"), Book("Coin flip")
+        self.books = (self.qwen, self.journal, self.flip)
         self.meta: Dict[str, Any] = {"rules_version": R.RULES_VERSION, "started": now_iso(), "hold_btc_start": None,
                                      "decisions": 0, "missed": 0, "decision_seconds": [], "last_funding_slot": "",
-                                     "last_decision": None, "last_decision_slot": 0, "funding_unknown": 0}
+                                     "last_decision": None, "last_decision_slot": 0, "funding_unknown": 0,
+                                     "journal_brain": {"missed": 0, "decision_seconds": [], "last_decision": None}}
         self.events: list = []
         self.curve: list = []
         self._load()
@@ -63,25 +66,33 @@ class Paper:
             p.rename(self.data / f"books_{int(time.time())}_old_rules.json")   # new rules = fresh record
             return
         self.meta.update(s["meta"])
-        for b, key in ((self.qwen, "qwen"), (self.flip, "flip")):
+        for b, key in ((self.qwen, "qwen"), (self.journal, "journal"), (self.flip, "flip")):
             b.__dict__.update(s[key])
         self.events, self.curve = s.get("events", []), s.get("curve", [])
 
     def save(self, prices) -> None:
-        _write(self.data / "books.json", {"meta": self.meta, "qwen": self.qwen.__dict__, "flip": self.flip.__dict__,
+        _write(self.data / "books.json", {"meta": self.meta, "qwen": self.qwen.__dict__, "journal": self.journal.__dict__,
+                                          "flip": self.flip.__dict__,
                                           "events": self.events[-200:], "curve": self.curve[-2000:]})
         btc = prices.get("BTCUSDT") if prices else None
         hold = None
         if btc and self.meta["hold_btc_start"]:
             hold = round(R.START_BALANCE * ((btc["bid"] + btc["ask"]) / 2) / self.meta["hold_btc_start"], 2)
         secs = self.meta["decision_seconds"][-50:]
+        jb = self.meta["journal_brain"]
+        jsecs = jb["decision_seconds"][-50:]
         _write(self.data / "state.json", {
             "updated_at": now_iso(), "rules_version": R.RULES_VERSION, "started": self.meta["started"],
             "prices": prices, "qwen": self.qwen.summary(prices) if prices else None,
+            "qwen_journal": self.journal.summary(prices) if prices else None,
             "coin_flip": self.flip.summary(prices) if prices else None, "hold_btc": hold,
             "decisions": self.meta["decisions"], "missed": self.meta["missed"],
             "avg_decision_seconds": round(sum(secs) / len(secs), 2) if secs else None,
             "last_decision": self.meta["last_decision"], "funding_unknown": self.meta["funding_unknown"],
+            "journal_brain": {"missed": jb["missed"], "last_decision": jb["last_decision"],
+                              "avg_decision_seconds": round(sum(jsecs) / len(jsecs), 2) if jsecs else None},
+            "scorecard": scorecard.build(self.journal.trades),
+            "journal_recent_trades": (self.journal.trades[-20:])[::-1],
             "recent_trades": (self.qwen.trades[-20:])[::-1], "events": self.events[-40:][::-1], "curve": self.curve[-288:],
         })
 
@@ -96,7 +107,7 @@ class Paper:
         day = datetime.now(AEST).strftime("%Y-%m-%d")
         if not self.meta["hold_btc_start"]:
             self.meta["hold_btc_start"] = (prices["BTCUSDT"]["bid"] + prices["BTCUSDT"]["ask"]) / 2
-        for b in (self.qwen, self.flip):
+        for b in self.books:
             b.new_day(day, prices)
             for t in b.check_exits(prices, at):
                 self.log("exit", f"{b.name}: {t['symbol']} {t['side']} closed at {t['why']} ({t['pnl']:+,.2f})", book=b.name)
@@ -111,7 +122,7 @@ class Paper:
                 rate = self.mkt.funding_rate(sym)
                 if rate is None:
                     self.meta["funding_unknown"] += 1
-                for b in (self.qwen, self.flip):
+                for b in self.books:
                     b.apply_funding(sym, rate, prices)
 
     def decision_round(self, prices) -> None:
@@ -124,25 +135,34 @@ class Paper:
             atrs[sym] = s["atr14_5m"]
         funding_ok = all(self.mkt.funding_rate(s) is not None for s in R.SYMBOLS)
         self.meta["decisions"] += 1
-        got, info = self.decide(snaps, {s: {"side": p["side"], "entry": p["entry"]} for s, p in self.qwen.positions.items()})
-        if got is None:
-            self.meta["missed"] += 1
-            self.meta["last_decision"] = {"at": at, "missed": True, "why": info.get("error"), "seconds": info.get("seconds")}
-            self.log("missed", f"Qwen decision missed: {info.get('error')}")
-        else:
-            self.meta["decision_seconds"] = (self.meta["decision_seconds"] + [info["seconds"]])[-200:]
-            notes = []
-            for sym, d in got.items():
-                notes += self.qwen.act(sym, d["action"], prices, atrs[sym], at, d["reason"], funding_ok)
-            self.meta["last_decision"] = {"at": at, "missed": False, "seconds": info["seconds"], "decisions": got, "result": notes}
-            self.log("decision", "; ".join(f"{s} {d['action']}" for s, d in got.items()) + (" → " + "; ".join(notes) if notes else ""),
-                     decisions=got)
+        # both Qwens see the same market at the same moment; only the journal one also sees its track record
+        self._qwen_round(self.qwen, self.meta, "Qwen", None, snaps, atrs, prices, at, funding_ok)
+        self._qwen_round(self.journal, self.meta["journal_brain"], "Qwen + journal", scorecard.build(self.journal.trades),
+                         snaps, atrs, prices, at, funding_ok)
         rng = random.Random(R.COIN_FLIP_SEED + self.meta["decisions"])
         for sym in R.SYMBOLS:
             for n in self.flip.act(sym, rng.choice(["LONG", "SHORT", "FLAT"]), prices, atrs[sym], at, "coin flip", funding_ok):
                 self.log("flip", f"Coin flip: {n}", book="Coin flip")
         hold = R.START_BALANCE * ((prices["BTCUSDT"]["bid"] + prices["BTCUSDT"]["ask"]) / 2) / self.meta["hold_btc_start"]
-        self.curve.append({"t": at, "qwen": round(self.qwen.equity(prices), 2), "flip": round(self.flip.equity(prices), 2), "hold": round(hold, 2)})
+        self.curve.append({"t": at, "qwen": round(self.qwen.equity(prices), 2), "journal": round(self.journal.equity(prices), 2),
+                           "flip": round(self.flip.equity(prices), 2), "hold": round(hold, 2)})
+
+
+    def _qwen_round(self, book: Book, m: Dict[str, Any], label: str, record, snaps, atrs, prices, at: str, funding_ok: bool) -> None:
+        pos = {s: {"side": p["side"], "entry": p["entry"]} for s, p in book.positions.items()}
+        got, info = self.decide(snaps, pos) if record is None else self.decide(snaps, pos, track_record=record)
+        if got is None:
+            m["missed"] += 1
+            m["last_decision"] = {"at": at, "missed": True, "why": info.get("error"), "seconds": info.get("seconds")}
+            self.log("missed", f"{label} decision missed: {info.get('error')}", book=label)
+            return
+        m["decision_seconds"] = (m["decision_seconds"] + [info["seconds"]])[-200:]
+        notes = []
+        for sym, d in got.items():
+            notes += book.act(sym, d["action"], prices, atrs[sym], at, d["reason"], funding_ok, d.get("play", "NONE"), d.get("confidence"))
+        m["last_decision"] = {"at": at, "missed": False, "seconds": info["seconds"], "decisions": got, "result": notes}
+        self.log("decision", f"{label}: " + "; ".join(f"{s} {d['action']}" for s, d in got.items())
+                 + (" → " + "; ".join(notes) if notes else ""), decisions=got, book=label)
 
 
 def _single_instance_lock():

@@ -833,7 +833,7 @@
         (stop 1.5&times; and target 2.5&times; the 5-minute ATR). At most 1.5&times; the account per position and 3&times; in total.
         Down 3% in a day: everything closes until midnight Brisbane. Buys fill at the ask and sells at the bid, plus Binance's 0.05% taker fee each way;
         funding is charged at 10am, 6pm and 2am Brisbane when the rate can be read. A late or bad answer counts as a missed decision.
-        Compared with a coin flip under the same rules, and with simply holding BTC. Changing any rule starts a new record.</div>
+        A second Qwen, “Qwen + journal”, trades the same moments and also sees counts of its own closed trades, worked out by code; a group shows numbers only after 30 trades. Compared with a coin flip under the same rules, and with simply holding BTC. Changing any rule starts a new record.</div>
     </section>
   </main>
 
@@ -2828,7 +2828,7 @@ function renderCoreCrypto(st) {
   }
   el.innerHTML = `<div class="core-head"><span class="mono">Plutus &middot; paper crypto</span><span class="mono"><span class="dot ${st.running ? 'working live' : 'late'}" aria-hidden="true" style="margin-right:6px"></span>${st.running ? 'Live' : 'Stopped'}</span></div>
     <div style="font-size:30px;font-weight:300;margin-top:6px;font-variant-numeric:tabular-nums">${esc(usd(st.qwen.equity))}</div>
-    <div class="core-note">${esc(pctTxt(st.qwen.return_pct))} · coin flip ${esc(usd(st.coin_flip.equity))} · hold BTC ${esc(usd(st.hold_btc))}</div>`;
+    <div class="core-note">${esc(pctTxt(st.qwen.return_pct))} · with journal ${esc(usd(st.qwen_journal && st.qwen_journal.equity))} · coin flip ${esc(usd(st.coin_flip.equity))} · hold BTC ${esc(usd(st.hold_btc))}</div>`;
 }
 async function loadCrypto() {
   const st = await fetchCrypto();
@@ -2838,22 +2838,25 @@ async function loadCrypto() {
   document.getElementById('cryptoStatus').innerHTML = `<span class="dot ${st.running ? 'working live' : 'late'}" aria-hidden="true" style="margin-right:6px"></span>${st.running ? 'Live' : 'Stopped ' + (st.age_seconds || '?') + ' s ago'} · since ${esc(String(st.started).slice(0, 16).replace('T', ' '))} · rules ${esc(st.rules_version)}`;
   const tile = (label, big, note) => `<section class="ng-glass"><div class="mono">${esc(label)}</div><div style="font-size:30px;font-weight:300;font-variant-numeric:tabular-nums;margin-top:4px">${esc(big)}</div><div class="core-note">${esc(note)}</div></section>`;
   tiles.innerHTML = tile('Qwen', usd(st.qwen.equity), pctTxt(st.qwen.return_pct) + ' · ' + st.qwen.trades + ' trades · fees ' + usd(st.qwen.fees)) +
+    (st.qwen_journal ? tile('Qwen + journal', usd(st.qwen_journal.equity), pctTxt(st.qwen_journal.return_pct) + ' · ' + st.qwen_journal.trades + ' trades · fees ' + usd(st.qwen_journal.fees)) : '') +
     tile('Coin flip (same rules)', usd(st.coin_flip.equity), pctTxt(st.coin_flip.return_pct) + ' · ' + st.coin_flip.trades + ' trades') +
     tile('Hold BTC', usd(st.hold_btc), 'Bought at the start, never traded') +
-    tile('Decisions', String(st.decisions), st.missed + ' missed · avg ' + (st.avg_decision_seconds == null ? '—' : st.avg_decision_seconds + ' s'));
+    tile('Decisions', String(st.decisions), st.missed + ' missed' + (st.journal_brain ? ' (journal ' + st.journal_brain.missed + ')' : '') + ' · avg ' + (st.avg_decision_seconds == null ? '—' : st.avg_decision_seconds + ' s'));
   // chart: three lines, no animation (charts never animate)
   const pts = st.curve || [];
   const chart = document.getElementById('cryptoChart');
   if (pts.length < 2) { chart.innerHTML = '<div class="core-note">The chart starts after two decisions.</div>'; }
   else {
-    const W = 1000, H = 220, all = pts.flatMap(p => [p.qwen, p.flip, p.hold]);
+    const W = 1000, H = 220, all = pts.flatMap(p => [p.qwen, p.flip, p.hold, p.journal].filter(v => v != null));
     const lo = Math.min(...all), hi = Math.max(...all), span = Math.max(1, hi - lo);
-    const line = k => pts.map((p, i) => `${(i / (pts.length - 1) * W).toFixed(1)},${(H - (p[k] - lo) / span * (H - 20) - 10).toFixed(1)}`).join(' ');
-    chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="220" role="img" aria-label="Account value over time for Qwen, the coin flip and holding BTC" preserveAspectRatio="none">
+    const line = k => pts.filter(p => p[k] != null).map((p, i) => `${(i / (pts.length - 1) * W).toFixed(1)},${(H - (p[k] - lo) / span * (H - 20) - 10).toFixed(1)}`).join(' ');
+    chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="220" role="img" aria-label="Account value over time for Qwen, Qwen with its journal, the coin flip and holding BTC" preserveAspectRatio="none">
       <polyline points="${line('hold')}" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/>
       <polyline points="${line('flip')}" fill="none" stroke="#a78bfa" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+      <polyline points="${line('journal')}" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
       <polyline points="${line('qwen')}" fill="none" stroke="#6cc7f0" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
       <div class="row" style="margin-top:6px;gap:16px"><span class="core-note"><span style="display:inline-block;width:14px;height:2px;background:#6cc7f0;vertical-align:middle;margin-right:6px"></span>Qwen</span>
+      <span class="core-note"><span style="display:inline-block;width:14px;height:2px;background:rgba(255,255,255,.92);vertical-align:middle;margin-right:6px"></span>Qwen + journal</span>
       <span class="core-note"><span style="display:inline-block;width:14px;height:2px;background:#a78bfa;vertical-align:middle;margin-right:6px"></span>Coin flip</span>
       <span class="core-note"><span style="display:inline-block;width:14px;border-top:2px dashed rgba(255,255,255,.6);vertical-align:middle;margin-right:6px"></span>Hold BTC</span>
       <span class="core-note">${esc(usd(lo))} – ${esc(usd(hi))}</span></div>`;
@@ -2861,8 +2864,20 @@ async function loadCrypto() {
   const d = st.last_decision;
   document.getElementById('cryptoDecision').innerHTML = !d ? '<div class="core-note">No decision yet.</div>' : d.missed
     ? `<div class="core-item"><span class="dot late" aria-hidden="true" style="margin-right:8px"></span>Missed at ${esc(String(d.at).slice(11, 16))}<div class="core-note">${esc(d.why || '')}</div></div>`
-    : Object.entries(d.decisions || {}).map(([sym, x]) => `<div class="core-item"><strong>${esc(sym.replace('USDT', ''))}</strong> · ${esc(x.action)} <span class="core-note">(${esc(x.play)}, confidence ${esc(String(x.confidence))})</span><div class="core-note">${esc(x.reason)}</div></div>`).join('') +
+    : `<div class="mono">Qwen</div>` + Object.entries(d.decisions || {}).map(([sym, x]) => `<div class="core-item"><strong>${esc(sym.replace('USDT', ''))}</strong> · ${esc(x.action)} <span class="core-note">(${esc(x.play)}, confidence ${esc(String(x.confidence))})</span><div class="core-note">${esc(x.reason)}</div></div>`).join('') +
       `<div class="core-note" style="margin-top:6px">${esc(String(d.at).slice(11, 16))} · answered in ${esc(String(d.seconds))} s${(d.result || []).length ? ' · ' + esc(d.result.join('; ')) : ''}</div>`;
+  const jd = st.journal_brain && st.journal_brain.last_decision;
+  if (jd) {
+    document.getElementById('cryptoDecision').innerHTML += `<div class="mono" style="margin-top:12px">Qwen + journal</div>` + (jd.missed
+      ? `<div class="core-item"><span class="dot late" aria-hidden="true" style="margin-right:8px"></span>Missed at ${esc(String(jd.at).slice(11, 16))}<div class="core-note">${esc(jd.why || '')}</div></div>`
+      : Object.entries(jd.decisions || {}).map(([sym, x]) => `<div class="core-item"><strong>${esc(sym.replace('USDT', ''))}</strong> · ${esc(x.action)} <span class="core-note">(${esc(x.play)}, confidence ${esc(String(x.confidence))})</span><div class="core-note">${esc(x.reason)}</div></div>`).join(''));
+  }
+  const sc = st.scorecard;
+  if (sc) {
+    const row = (label, g) => `<div class="core-note">${esc(label)}: ${g.win_rate_pct == null ? esc(g.trades + ' trades, too few to judge') : esc(g.trades + ' trades · ' + g.win_rate_pct + '% win · ' + pctTxt(g.avg_result_pct_after_costs) + ' avg')}</div>`;
+    const groups = ['by_side', 'by_play', 'by_exit', 'by_confidence'].flatMap(k => Object.entries(sc[k] || {}).map(([n, g]) => row(n, g))).join('');
+    document.getElementById('cryptoDecision').innerHTML += `<div class="mono" style="margin-top:12px">What its journal shows it</div>${row('All closed trades', sc.all)}${groups}`;
+  }
   const pos = Object.entries(st.qwen.positions || {});
   document.getElementById('cryptoPositions').innerHTML = pos.length ? pos.map(([s, p]) => `<div class="core-item"><strong>${esc(s.replace('USDT', ''))}</strong> ${esc(p.side)} ${esc(Number(p.qty).toFixed(4))} @ ${esc(usd(p.entry))}<div class="core-note">stop ${esc(usd(p.stop))} · target ${esc(usd(p.target))} · ${esc(p.reason || '')}</div></div>`).join('') : '<div class="core-note">None open.</div>';
   const tr = st.recent_trades || [];
