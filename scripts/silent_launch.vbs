@@ -27,6 +27,9 @@ If Not fso.FileExists(pyExe) Then pyExe = "pythonw"
 sh.CurrentDirectory = root
 sh.Run """" & pyExe & """ dashboard\server.py", 0, False
 
+' 3b. Start the Qwen crypto paper bot (fake money). Only one copy can run; extra copies exit at once.
+sh.Run """" & pyExe & """ -m crypto_paper.runner", 0, False
+
 ' 4. Open the dashboard
 If openBrowser Then
     WScript.Sleep 3000

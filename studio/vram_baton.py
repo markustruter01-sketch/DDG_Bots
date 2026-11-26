@@ -91,6 +91,18 @@ def get_running_processes() -> set[str]:
         return set()
 
 
+def ollama_vram_mb(base_url: str = "http://127.0.0.1:11434") -> int:
+    """VRAM held by models Ollama has loaded (its /api/ps), or 0 if Ollama doesn't answer."""
+    try:
+        import json as _json
+        import urllib.request as _ur
+        with _ur.urlopen(f"{base_url}/api/ps", timeout=2) as r:
+            models = _json.loads(r.read().decode("utf-8")).get("models", [])
+        return int(sum(m.get("size_vram", 0) for m in models) / (1024 * 1024))
+    except Exception:
+        return 0
+
+
 def is_gpu_busy_for_user(
     paused_processes: Iterable[str] = (
         "UnrealEditor.exe",
@@ -106,8 +118,11 @@ def is_gpu_busy_for_user(
             return True, f"Paused: active process detected ({target})"
 
     used_mb = query_vram_used_mb()
+    if used_mb is not None:
+        # Our own local AI (Ollama) is not "Markus using the GPU": leave its share out (26 Nov 2026).
+        used_mb = max(0, used_mb - ollama_vram_mb())
     if used_mb is not None and used_mb >= vram_threshold_mb:
-        return True, f"Paused: GPU VRAM already busy ({used_mb} MiB >= {vram_threshold_mb} MiB)"
+        return True, f"Paused: GPU VRAM already busy ({used_mb} MiB >= {vram_threshold_mb} MiB, not counting the local AI)"
 
     return False, "GPU available"
 

@@ -18,6 +18,23 @@ End If
 Err.Clear
 On Error GoTo 0
 
+' The crypto paper bot writes data\crypto\state.json every few seconds. If it is older than 3 minutes, start it again
+' (a second copy cannot start while the first is still running).
+Dim st, pyExe
+If ok Then
+    st = root & "\data\crypto\state.json"
+    If (Not fso.FileExists(st)) Or (DateDiff("s", fso.GetFile(st).DateLastModified, Now) > 180) Then
+        pyExe = root & "\.venv\Scripts\pythonw.exe"
+        If Not fso.FileExists(pyExe) Then pyExe = "pythonw"
+        If Not fso.FolderExists(root & "\logs") Then fso.CreateFolder(root & "\logs")
+        Set logFile = fso.OpenTextFile(root & "\logs\watchdog.log", 8, True)
+        logFile.WriteLine Now & "  crypto paper bot not updating - starting it"
+        logFile.Close
+        sh.CurrentDirectory = root
+        sh.Run """" & pyExe & """ -m crypto_paper.runner", 0, False
+    End If
+End If
+
 If Not ok Then
     If Not fso.FolderExists(root & "\logs") Then fso.CreateFolder(root & "\logs")
     Set logFile = fso.OpenTextFile(root & "\logs\watchdog.log", 8, True)

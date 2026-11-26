@@ -759,6 +759,7 @@
       <div id="navPill" class="ng-pill" aria-hidden="true"></div>
       <button class="nav-tab" data-view="core" aria-current="page" onclick="switchView('core', this)">Core</button>
       <button class="nav-tab" data-view="bots" onclick="switchView('bots', this)">Bots &amp; Chat</button>
+      <button class="nav-tab" data-view="crypto" onclick="switchView('crypto', this)">Crypto</button>
       <button class="nav-tab" data-view="video" onclick="switchView('video', this)">Video Studio</button>
       <button class="nav-tab" data-view="schedule" onclick="switchView('schedule', this)">Schedules &amp; System</button>
     </nav>
@@ -801,14 +802,39 @@
           <div class="core-head"><h3>Waiting for you</h3><span class="mono" id="coreWaitCount">Reading</span></div>
           <div id="coreWaiting"><span class="ng-loader" role="status"><span class="ng-revolve" aria-hidden="true"></span>Reading approvals</span></div>
         </section>
-        <section class="ng-glass" aria-label="Paper crypto">
+        <section class="ng-glass" aria-label="Paper crypto" id="coreCrypto">
           <div class="mono">Plutus &middot; paper crypto</div>
-          <div style="font-size:15px;font-weight:600;margin-top:8px">Not running yet</div>
-          <div class="core-note">Starts when the Qwen crypto paper bot is built.</div>
+          <div style="font-size:15px;font-weight:600;margin-top:8px">Reading</div>
         </section>
       </div>
     </section>
     <div id="coreChatHost" class="core-chat"></div>
+  </main>
+
+  <!-- VIEW: CRYPTO PAPER BOT (Phase 5) -->
+  <main id="view-crypto" class="hidden" style="margin-top:18px">
+    <div class="core-cards" style="grid-template-columns:repeat(4,minmax(0,1fr))" id="cryptoTiles"></div>
+    <section class="ng-glass" style="margin-top:14px" aria-label="Equity">
+      <div class="core-head"><h3>Account value (fake US$)</h3><span class="mono" id="cryptoStatus">Reading</span></div>
+      <div id="cryptoChart" style="margin-top:8px"></div>
+    </section>
+    <div class="core-cards" style="margin-top:14px">
+      <section class="ng-glass" aria-label="Latest decision"><h3>Latest decision</h3><div id="cryptoDecision"></div></section>
+      <section class="ng-glass" aria-label="Open positions"><h3>Open positions</h3><div id="cryptoPositions"></div></section>
+    </div>
+    <div class="core-cards" style="margin-top:14px">
+      <section class="ng-glass" aria-label="Recent trades"><h3>Qwen's recent trades</h3><div id="cryptoTrades" style="overflow-x:auto"></div></section>
+      <section class="ng-glass" aria-label="Log"><h3>Log</h3><div id="cryptoEvents" class="core-log" style="max-height:340px;overflow:auto"></div></section>
+    </div>
+    <section class="ng-glass" style="margin-top:14px" aria-label="Rules">
+      <h3>Rules (written down before trading)</h3>
+      <div class="core-note" style="line-height:1.8">Fake money only: no exchange account, no keys, no real orders. Live Binance prices for BTC and ETH.
+        Qwen decides LONG, SHORT or FLAT every 5 minutes; code does the rest. Each trade risks 0.5% of the account at its stop
+        (stop 1.5&times; and target 2.5&times; the 5-minute ATR). At most 1.5&times; the account per position and 3&times; in total.
+        Down 3% in a day: everything closes until midnight Brisbane. Buys fill at the ask and sells at the bid, plus Binance's 0.05% taker fee each way;
+        funding is charged at 10am, 6pm and 2am Brisbane when the rate can be read. A late or bad answer counts as a missed decision.
+        Compared with a coin flip under the same rules, and with simply holding BTC. Changing any rule starts a new record.</div>
+    </section>
   </main>
 
   <!-- VIEW 1: BOTS & CHAT -->
@@ -1200,12 +1226,13 @@ function switchView(view, btn) {
   document.querySelectorAll('.nav-tab').forEach(t => {
     t.setAttribute('aria-current', t === btn ? 'page' : 'false');
   });
-  ['core', 'bots', 'video', 'schedule'].forEach(v => {
+  ['core', 'bots', 'crypto', 'video', 'schedule'].forEach(v => {
     document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
   });
   placeChat(view);
   positionPill(btn, true);
   if (view === 'core') loadCore();
+  if (view === 'crypto') loadCrypto();
   if (view === 'video') { loadInbox(); loadJobs(); }
   if (view === 'schedule') { loadSchedule(); loadSystem(); loadSocial(); loadGovernanceProposals(); pcLoadPlans(); loadImages(); }
 }
@@ -2788,6 +2815,64 @@ async function togglePause() {
   loadBots();
 }
 
+/* ===== Crypto paper bot (Phase 5) ===== */
+function usd(n) { return n == null ? '—' : '$' + Number(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function pctTxt(n) { return n == null ? '—' : (n >= 0 ? '+' : '') + Number(n).toFixed(2) + '%'; }
+async function fetchCrypto() { try { const r = await apiFetch('/api/crypto'); return r.ok ? r.data : null; } catch (e) { return null; } }
+function renderCoreCrypto(st) {
+  const el = document.getElementById('coreCrypto');
+  if (!el) return;
+  if (!st || !st.qwen) {
+    el.innerHTML = `<div class="mono">Plutus &middot; paper crypto</div><div style="font-size:15px;font-weight:600;margin-top:8px">Not running yet</div><div class="core-note">${esc((st && st.note) || 'Waiting for the first price.')}</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="core-head"><span class="mono">Plutus &middot; paper crypto</span><span class="mono"><span class="dot ${st.running ? 'working live' : 'late'}" aria-hidden="true" style="margin-right:6px"></span>${st.running ? 'Live' : 'Stopped'}</span></div>
+    <div style="font-size:30px;font-weight:300;margin-top:6px;font-variant-numeric:tabular-nums">${esc(usd(st.qwen.equity))}</div>
+    <div class="core-note">${esc(pctTxt(st.qwen.return_pct))} · coin flip ${esc(usd(st.coin_flip.equity))} · hold BTC ${esc(usd(st.hold_btc))}</div>`;
+}
+async function loadCrypto() {
+  const st = await fetchCrypto();
+  renderCoreCrypto(st);
+  const tiles = document.getElementById('cryptoTiles');
+  if (!st || !st.qwen) { tiles.innerHTML = `<section class="ng-glass">${esc((st && st.note) || 'Not running yet.')}</section>`; return; }
+  document.getElementById('cryptoStatus').innerHTML = `<span class="dot ${st.running ? 'working live' : 'late'}" aria-hidden="true" style="margin-right:6px"></span>${st.running ? 'Live' : 'Stopped ' + (st.age_seconds || '?') + ' s ago'} · since ${esc(String(st.started).slice(0, 16).replace('T', ' '))} · rules ${esc(st.rules_version)}`;
+  const tile = (label, big, note) => `<section class="ng-glass"><div class="mono">${esc(label)}</div><div style="font-size:30px;font-weight:300;font-variant-numeric:tabular-nums;margin-top:4px">${esc(big)}</div><div class="core-note">${esc(note)}</div></section>`;
+  tiles.innerHTML = tile('Qwen', usd(st.qwen.equity), pctTxt(st.qwen.return_pct) + ' · ' + st.qwen.trades + ' trades · fees ' + usd(st.qwen.fees)) +
+    tile('Coin flip (same rules)', usd(st.coin_flip.equity), pctTxt(st.coin_flip.return_pct) + ' · ' + st.coin_flip.trades + ' trades') +
+    tile('Hold BTC', usd(st.hold_btc), 'Bought at the start, never traded') +
+    tile('Decisions', String(st.decisions), st.missed + ' missed · avg ' + (st.avg_decision_seconds == null ? '—' : st.avg_decision_seconds + ' s'));
+  // chart: three lines, no animation (charts never animate)
+  const pts = st.curve || [];
+  const chart = document.getElementById('cryptoChart');
+  if (pts.length < 2) { chart.innerHTML = '<div class="core-note">The chart starts after two decisions.</div>'; }
+  else {
+    const W = 1000, H = 220, all = pts.flatMap(p => [p.qwen, p.flip, p.hold]);
+    const lo = Math.min(...all), hi = Math.max(...all), span = Math.max(1, hi - lo);
+    const line = k => pts.map((p, i) => `${(i / (pts.length - 1) * W).toFixed(1)},${(H - (p[k] - lo) / span * (H - 20) - 10).toFixed(1)}`).join(' ');
+    chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="220" role="img" aria-label="Account value over time for Qwen, the coin flip and holding BTC" preserveAspectRatio="none">
+      <polyline points="${line('hold')}" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/>
+      <polyline points="${line('flip')}" fill="none" stroke="#a78bfa" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+      <polyline points="${line('qwen')}" fill="none" stroke="#6cc7f0" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+      <div class="row" style="margin-top:6px;gap:16px"><span class="core-note"><span style="display:inline-block;width:14px;height:2px;background:#6cc7f0;vertical-align:middle;margin-right:6px"></span>Qwen</span>
+      <span class="core-note"><span style="display:inline-block;width:14px;height:2px;background:#a78bfa;vertical-align:middle;margin-right:6px"></span>Coin flip</span>
+      <span class="core-note"><span style="display:inline-block;width:14px;border-top:2px dashed rgba(255,255,255,.6);vertical-align:middle;margin-right:6px"></span>Hold BTC</span>
+      <span class="core-note">${esc(usd(lo))} – ${esc(usd(hi))}</span></div>`;
+  }
+  const d = st.last_decision;
+  document.getElementById('cryptoDecision').innerHTML = !d ? '<div class="core-note">No decision yet.</div>' : d.missed
+    ? `<div class="core-item"><span class="dot late" aria-hidden="true" style="margin-right:8px"></span>Missed at ${esc(String(d.at).slice(11, 16))}<div class="core-note">${esc(d.why || '')}</div></div>`
+    : Object.entries(d.decisions || {}).map(([sym, x]) => `<div class="core-item"><strong>${esc(sym.replace('USDT', ''))}</strong> · ${esc(x.action)} <span class="core-note">(${esc(x.play)}, confidence ${esc(String(x.confidence))})</span><div class="core-note">${esc(x.reason)}</div></div>`).join('') +
+      `<div class="core-note" style="margin-top:6px">${esc(String(d.at).slice(11, 16))} · answered in ${esc(String(d.seconds))} s${(d.result || []).length ? ' · ' + esc(d.result.join('; ')) : ''}</div>`;
+  const pos = Object.entries(st.qwen.positions || {});
+  document.getElementById('cryptoPositions').innerHTML = pos.length ? pos.map(([s, p]) => `<div class="core-item"><strong>${esc(s.replace('USDT', ''))}</strong> ${esc(p.side)} ${esc(Number(p.qty).toFixed(4))} @ ${esc(usd(p.entry))}<div class="core-note">stop ${esc(usd(p.stop))} · target ${esc(usd(p.target))} · ${esc(p.reason || '')}</div></div>`).join('') : '<div class="core-note">None open.</div>';
+  const tr = st.recent_trades || [];
+  document.getElementById('cryptoTrades').innerHTML = tr.length ? `<table><thead><tr><th class="mono">Closed</th><th class="mono">Coin</th><th class="mono">Side</th><th class="mono">Why</th><th class="mono">Result</th></tr></thead><tbody>` +
+    tr.map(t => `<tr><td class="mono">${esc(String(t.closed).slice(5, 16).replace('T', ' '))}</td><td>${esc(t.symbol.replace('USDT', ''))}</td><td>${esc(t.side)}</td><td>${esc(t.why)}</td>
+      <td class="tabular" style="${t.pnl < 0 ? 'border-bottom:2px solid var(--ng-amber)' : ''}">${t.pnl >= 0 ? '+' : '−'}${esc(usd(Math.abs(t.pnl)))}</td></tr>`).join('') + '</tbody></table>' : '<div class="core-note">No closed trades yet.</div>';
+  document.getElementById('cryptoEvents').innerHTML = (st.events || []).map(e => `<div>${esc(String(e.at).slice(11, 16))} ${esc(e.text)}</div>`).join('') || 'Nothing yet.';
+}
+setInterval(() => { if (!document.hidden && (currentView === 'crypto' || currentView === 'core')) currentView === 'crypto' ? loadCrypto() : fetchCrypto().then(renderCoreCrypto); }, 10000);
+
 /* ===== Core view (design A2) ===== */
 function coreWhen(iso) { return iso ? String(iso).slice(11, 16) : ''; }
 async function loadCore() {
@@ -2819,6 +2904,7 @@ async function loadCore() {
   (socialR.ok ? (socialR.data.queue || []) : []).filter(q => q.status === 'pending_approval').forEach(q => items.push(
     `<div class="core-item"><div style="font-weight:500">Social post draft</div><div class="core-note">${esc(String(q.text || q.caption || '').slice(0, 80))}</div>
      <div class="row" style="margin-top:8px"><button class="btn secondary sm" onclick="switchView('schedule', document.querySelector('.nav-tab[data-view=schedule]'))">Review</button></div></div>`));
+  fetchCrypto().then(renderCoreCrypto);
   document.getElementById('coreWaitCount').textContent = String(items.length);
   document.getElementById('coreWaiting').innerHTML = items.length ? items.join('') : '<div class="core-note" style="padding:8px 0">Nothing is waiting on you.</div>';
   try {

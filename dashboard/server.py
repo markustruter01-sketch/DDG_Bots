@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.26-tools-routines"
+STUDIO_VERSION = "2026.11.26-crypto"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 # Bots only see chat history from after the honesty fixes, so old false answers ("full access") are not repeated.
@@ -133,8 +133,8 @@ DEFAULT_BOT_ROSTER: list[dict[str, Any]] = [
         "name": "Plutus",
         "title": "Finance & Analytics",
         "active": False,
-        "zone": "Paused Bench (Air-gapped from DDG Finance)",
-        "summary": "Read-only CDC/ad P&L analytics. Never touches DDG Finance trading.",
+        "zone": "Bench (separate from DDG Finance)",
+        "summary": "Reports on the Qwen crypto paper bot (fake money) and read-only analytics. Never touches DDG Finance trading.",
         "tools": ["analytics_read_only"],
     },
 ]
@@ -485,7 +485,11 @@ def make_handler(studio_root: Path, footage_root: Path):
         return waiting
 
     def _trigger_7am_brief() -> dict[str, Any]:
-        brief = build_heimdall_daily_list(studio_root=studio_root, max_items=5, waiting=_waiting_on_markus())
+        extra = _waiting_on_markus()
+        line = _crypto_line()
+        if line:
+            extra.append({"item": "Crypto paper bot (fake money): " + line, "recommendation": "No action needed; it's a test. Details on the Crypto page."})
+        brief = build_heimdall_daily_list(studio_root=studio_root, max_items=5, waiting=extra)
         items_txt = []
         for i, it in enumerate(brief.get("items", [])):
             items_txt.append(f"{i+1}. **{it.get('item')}**\n   • *Recommendation:* {it.get('recommendation')}")
@@ -502,6 +506,33 @@ def make_handler(studio_root: Path, footage_root: Path):
         _fire_windows_toast("Heimdall · 7:00am Brief", f"Good morning Markus! 5 daily priorities compiled for {today_str}.")
         scheduler_state["last_7am_date"] = today_str
         return brief
+
+    crypto_state_path = studio_root / "data" / "crypto" / "state.json"
+
+    def _crypto_state() -> dict[str, Any]:
+        """The crypto paper bot's own state file, plus whether it is live (updated in the last 30 s)."""
+        if not crypto_state_path.exists():
+            return {"running": False, "note": "The crypto paper bot has not started yet."}
+        try:
+            st = json.loads(crypto_state_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {"running": False, "note": "State file could not be read."}
+        try:
+            age = (datetime.now(AEST) - datetime.fromisoformat(st.get("updated_at"))).total_seconds()
+        except Exception:
+            age = None
+        st["age_seconds"] = round(age) if age is not None else None
+        st["running"] = age is not None and age < 30
+        return st
+
+    def _crypto_line() -> str | None:
+        st = _crypto_state()
+        q, f = st.get("qwen"), st.get("coin_flip")
+        if not q:
+            return None
+        return (f"Qwen ${q['equity']:,.2f} ({q['return_pct']:+.2f}%), coin flip ${f['equity']:,.2f}, hold BTC "
+                f"${st.get('hold_btc') or 0:,.2f}; {q['trades']} trades, {st.get('missed', 0)} missed of {st.get('decisions', 0)} decisions"
+                + ("" if st.get("running") else " (bot NOT running now)"))
 
     runs_path = logs_root / "routine_runs.json"
 
@@ -530,6 +561,7 @@ def make_handler(studio_root: Path, footage_root: Path):
             "social_queue_by_status": by_status,
             "routines_yesterday": routines.load_runs(runs_path).get(yesterday, {}),
             "local_ai_online": OllamaClient(base_url=settings["ollama"]["base_url"], timeout_s=2).is_available(),
+            "crypto_paper_fake_money": _crypto_line() or "not started",
             "not_tracked_yet": ["Cattle Dog Coffee sales, stock and email (no Shopify or Gmail connection)",
                                 "DDG Finance results", "X account replies and followers", "Doomsday Daycare build status"],
         }
@@ -658,6 +690,10 @@ def make_handler(studio_root: Path, footage_root: Path):
             path = parsed.path
             if not self._host_ok():
                 self._send_json(403, {"error": "Refused: wrong address. Open http://127.0.0.1:%d" % dash_port})
+                return
+
+            if path == "/api/crypto":
+                self._send_json(200, _crypto_state())
                 return
 
             if path == "/api/health":
@@ -1452,11 +1488,19 @@ def make_handler(studio_root: Path, footage_root: Path):
                     for h in _load_chats().get(bot["name"], [])[-4:]
                     if h.get("source") != "offline_charter" and h.get("timestamp_aest", "") >= HONEST_SINCE
                 ]
+                crypto_facts = ""
+                if bot["name"] == "Plutus":
+                    st = _crypto_state()
+                    slim = {k: st.get(k) for k in ("running", "started", "rules_version", "qwen", "coin_flip", "hold_btc",
+                                                    "decisions", "missed", "avg_decision_seconds", "last_decision")}
+                    slim["recent_trades"] = (st.get("recent_trades") or [])[:8]
+                    crypto_facts = ("You report on the crypto PAPER bot (fake money; Qwen decides, code trades). "
+                                    "Its live state is below; quote only these numbers.\nCRYPTO STATE: " + json.dumps(slim)[:3500] + "\n")
                 sys_prompt = (
                     f"You are {bot['name']}, {bot['title']} at Digital Dynamics Group (DDG). "
                     f"Zone: {bot['zone']}. Duty: {bot['summary']}\n"
                     "You run on Markus's own PC with a local AI model.\n"
-                    f"{CAPABILITIES_PROMPT}\n"
+                    f"{CAPABILITIES_PROMPT}\n{crypto_facts}"
                     f"Keep replies concise, professional, and helpful in plain Australian English. {extra_rules}"
                 )
 
