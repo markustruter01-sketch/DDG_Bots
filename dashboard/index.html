@@ -2726,15 +2726,21 @@ async function loadSchedule() {
   const { data } = await apiFetch('/api/schedule');
   const el = document.getElementById('scheduleTable');
   el.className = '';
-  const rows = (data.jobs || []).map(j => `
-    <tr>
+  const runs = data.runs || {};
+  const days = Object.keys(runs).sort().reverse();
+  const last = j => { for (const d of days) { const r = runs[d][j.bot + ':' + j.name]; if (r) return Object.assign({ day: d }, r); } return null; };
+  const dotFor = st => st === 'done' ? 'working' : (st === 'failed' ? 'problem' : (st === 'missed' ? 'late' : 'nodata'));
+  const rows = (data.jobs || []).map(j => {
+    const r = last(j);
+    return `<tr>
       <td><strong>${esc(j.bot)}</strong></td>
-      <td>${esc(j.name)}</td>
-      <td class="mono">${esc((j.days||[]).join(','))}</td>
-      <td class="mono tabular">${esc(j.time)} AEST</td>
-    </tr>
-  `).join('');
-  el.innerHTML = `<table><thead><tr><th class="mono">Bot</th><th class="mono">Routine</th><th class="mono">Days</th><th class="mono">Time</th></tr></thead><tbody>${rows}</tbody></table>`;
+      <td>${esc(j.name.replace(/_/g, ' '))}</td>
+      <td class="mono">${esc((j.days || []).join(','))}</td>
+      <td class="mono tabular">${esc(j.time)}</td>
+      <td>${r ? `<span class="status-pill"><span class="dot ${dotFor(r.status)}" aria-hidden="true"></span>${esc(r.status)} · ${esc(r.day.slice(5))}</span><div style="font-size:12.5px;color:var(--ng-text-3)">${esc(r.note || '')}</div>` : '<span style="color:var(--ng-text-3)">Not run yet</span>'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th class="mono">Bot</th><th class="mono">Routine</th><th class="mono">Days</th><th class="mono">Time AEST</th><th class="mono">Last result</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 async function generateHeimdallBrief() {

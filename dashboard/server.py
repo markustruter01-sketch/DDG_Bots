@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.26-core-chat"
+STUDIO_VERSION = "2026.11.26-tools-routines"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 # Bots only see chat history from after the honesty fixes, so old false answers ("full access") are not repeated.
@@ -34,6 +34,7 @@ from studio import tts as tts_engine
 from studio import governance
 from studio import pc_worker
 from studio import bot_tools
+from studio import routines
 from studio import image_gen
 from studio.ai_director import OllamaClient
 from studio.memory import BotMemory
@@ -473,6 +474,10 @@ def make_handler(studio_root: Path, footage_root: Path):
         if posts:
             waiting.append({"item": f"{len(posts)} social post draft(s) waiting",
                             "recommendation": "Approve or reject them in the social queue."})
+        plans = [p for p in pc_worker.list_plans() if p.get("status") == "pending_markus_approval"]
+        if plans:
+            waiting.append({"item": f"{len(plans)} PC tidy-up plan(s) waiting",
+                            "recommendation": "Check the moves in 'Waiting for you', then approve or reject. Every plan can be undone."})
         ok = OllamaClient(base_url=settings["ollama"]["base_url"], timeout_s=2).is_available()
         if not ok:
             waiting.append({"item": "Local AI (Ollama) is not answering",
@@ -498,43 +503,116 @@ def make_handler(studio_root: Path, footage_root: Path):
         scheduler_state["last_7am_date"] = today_str
         return brief
 
+    runs_path = logs_root / "routine_runs.json"
+
+    def _count_files(folder: Path) -> int:
+        try:
+            return sum(1 for f in folder.rglob("*") if f.is_file() and f.suffix.lower() in VIDEO_EXTS) if folder.exists() else 0
+        except OSError:
+            return 0
+
+    def _studio_facts() -> dict[str, Any]:
+        """Only things the studio can actually see. Routines may use nothing else."""
+        try:
+            queue = social.list_queue(studio_root)
+        except Exception:
+            queue = []
+        by_status: dict[str, int] = {}
+        for q in queue:
+            by_status[q.get("status", "unknown")] = by_status.get(q.get("status", "unknown"), 0) + 1
+        yesterday = (datetime.now(AEST) - timedelta(days=1)).strftime("%Y-%m-%d")
+        return {
+            "date_aest": datetime.now(AEST).strftime("%A %d %B %Y"),
+            "waiting_on_markus": [w["item"] for w in _waiting_on_markus()],
+            "videos_in_inbox": _count_files(footage_root / subdirs["inbox"]),
+            "videos_ready_for_review": _count_files(footage_root / subdirs["review"]),
+            "videos_approved_exports": _count_files(footage_root / subdirs["approved"]),
+            "social_queue_by_status": by_status,
+            "routines_yesterday": routines.load_runs(runs_path).get(yesterday, {}),
+            "local_ai_online": OllamaClient(base_url=settings["ollama"]["base_url"], timeout_s=2).is_available(),
+            "not_tracked_yet": ["Cattle Dog Coffee sales, stock and email (no Shopify or Gmail connection)",
+                                "DDG Finance results", "X account replies and followers", "Doomsday Daycare build status"],
+        }
+
+    def _ai_write(bot_name: str, task: str, facts: dict[str, Any], max_words: int = 160) -> str | None:
+        ai = OllamaClient(base_url=settings["ollama"]["base_url"], text_model=settings["ollama"]["text_model"],
+                          vision_model=settings["ollama"]["vision_model"], timeout_s=90)
+        if not ai.is_available():
+            return None
+        sys_p = (f"You are {bot_name} at Digital Dynamics Group (DDG), writing for Markus in plain Australian English. "
+                 "Use ONLY the facts given. Do not add numbers, names, dates, results or claims that are not in the facts. "
+                 "If something is listed under not_tracked_yet, say it isn't tracked yet rather than guessing. "
+                 f"At most {max_words} words. No preamble.")
+        return ai.chat_text(sys_p, f"TASK: {task}\n\nFACTS (JSON):\n{json.dumps(facts, ensure_ascii=False)}").strip() or None
+
+    def _run_7am(job: dict[str, Any]) -> tuple[str, str]:
+        brief = _trigger_7am_brief()
+        return "done", f"{len(brief.get('items', []))} item(s) sent to Markus."
+
+    def _run_monday(job: dict[str, Any]) -> tuple[str, str]:
+        facts = _studio_facts()
+        text = _ai_write("Heimdall", "Write the Monday 9:00am weekly review: what is waiting on Markus, what the studio did "
+                         "(routines_yesterday, videos), and what isn't tracked yet. End with up to 3 suggested focuses for the week, "
+                         "clearly marked as suggestions.", facts) or (
+            "Local AI was offline, so here are the plain facts:\n" + "\n".join(f"• {k}: {v}" for k, v in facts.items()))
+        _post_proactive_bot_message("Heimdall", f"🛡️ **[Heimdall · Monday review · {facts['date_aest']}]**\n{text}", "routine:monday_review")
+        _fire_windows_toast("Heimdall · Monday review", "Your weekly review is ready.")
+        return "done", "Posted to Heimdall's chat."
+
+    def _run_5pm(job: dict[str, Any]) -> tuple[str, str]:
+        facts = _studio_facts()
+        text = _ai_write("Saga (Marketing)", "Write the 5pm marketing brief: videos in the inbox, ready for review and approved; "
+                         "social posts by status; anything waiting on Markus. Short.", facts, 120)
+        if text is None:
+            return "skipped", "Local AI offline."
+        _post_proactive_bot_message("Marketing", f"🎬 **[Saga · 5pm brief]**\n{text}", "routine:daily_brief_5pm")
+        return "done", "Posted to Saga's chat."
+
+    def _run_friday_plan(job: dict[str, Any]) -> tuple[str, str]:
+        text = _ai_write("Saga (Marketing)", "Draft ideas for next week's DDG content: a few YouTube vlog angles and X post ideas. "
+                         "This is a DRAFT of ideas for Markus to pick from; do not claim anything is scheduled, made or posted.",
+                         _studio_facts(), 220)
+        if text is None:
+            return "skipped", "Local AI offline."
+        _post_proactive_bot_message("Marketing", f"🗓️ **[Saga · Friday content plan · draft for you]**\n{text}", "routine:friday_content_plan")
+        _fire_windows_toast("Saga · Friday plan", "Next week's content ideas are ready for you.")
+        return "done", "Draft ideas posted to Saga's chat."
+
+    def _run_x_draft(job: dict[str, Any]) -> tuple[str, str]:
+        text = _ai_write("Saga (Marketing)", "Write ONE post for the @DDGCompany X account about DDG building its own local AI team and "
+                         "tools. Under 260 characters. No hashtags spam (max 2). No numbers or claims beyond the facts. Output only the post.",
+                         _studio_facts(), 60)
+        if text is None:
+            return "skipped", "Local AI offline."
+        item = social.add_draft("x", text.strip().strip('"')[:280], by="Marketing", studio_root=studio_root)
+        _post_proactive_bot_message("Marketing", "📝 I drafted an X post. It's waiting for your approval in the social queue; "
+                                    "nothing is posted until you approve. (I can't read or answer replies on X yet.)", "routine:x_draft")
+        return "done", f"Draft {item.get('id', '')} queued for approval."
+
+    def _run_tyr_check(job: dict[str, Any]) -> tuple[str, str]:
+        return "skipped", "No Gmail or Shopify connection in the studio yet, so Tyr can't check the inbox or stock."
+
+    routine_runners = {
+        "daily_list_to_markus": _run_7am,
+        "monday_review": _run_monday,
+        "daily_brief_5pm": _run_5pm,
+        "friday_content_plan": _run_friday_plan,
+        "ddg_x_post_and_own_replies": _run_x_draft,
+        "cdc_inbox_and_stock_check": _run_tyr_check,
+    }
+
     def _start_proactive_scheduler() -> None:
         def _loop() -> None:
             while True:
-                time.sleep(20)
+                time.sleep(30)
                 if pause_flag.exists():
                     continue
-                now_aest = datetime.now(AEST)
-                today_str = now_aest.strftime("%Y-%m-%d")
-
-                # Weekday 7:00am AEST (Mon-Fri, hour == 7)
-                if now_aest.weekday() < 5 and now_aest.hour == 7 and scheduler_state["last_7am_date"] != today_str:
-                    try:
-                        _trigger_7am_brief()
-                        print(f"[Scheduler] Dispatched 7:00am daily brief for {today_str}")
-                    except Exception as e:
-                        print(f"[Scheduler] Error running 7:00am brief: {e}")
-
-                # Monday 9:00am AEST
-                if now_aest.weekday() == 0 and now_aest.hour == 9 and scheduler_state["last_monday_date"] != today_str:
-                    scheduler_state["last_monday_date"] = today_str
-                    try:
-                        ai_ok = OllamaClient(base_url=settings["ollama"]["base_url"], timeout_s=2).is_available()
-                        ai_line = (f"Local AI ({settings['ollama']['text_model']}) answered a check just now."
-                                   if ai_ok else "Local AI is NOT answering right now.")
-                        rev_msg = (
-                            f"🛡️ **[Heimdall · Monday 9:00am Executive Review · {today_str} AEST]**\n"
-                            f"Weekly executive review:\n"
-                            f"1. **Marketing & Video (Saga):** Threads of Empire vlogs, @DDGCompany X posts, and Shorts review queue.\n"
-                            f"2. **Cattle Dog Coffee (Tyr):** Christmas B2B campaign active (strict Spam Act consent, Gmail locked to Drafts).\n"
-                            f"3. **Doomsday Daycare (UE5):** Target 60 FPS mobile/PC performance budgets intact.\n"
-                            f"4. **Infrastructure:** {ai_line}"
-                        )
-                        _post_proactive_bot_message("Heimdall", rev_msg, "proactive_scheduler")
-                        _fire_windows_toast("Heimdall · Monday 9:00am Review", "Monday 9:00am Executive Review compiled.")
-                        print(f"[Scheduler] Dispatched Monday 9:00am review for {today_str}")
-                    except Exception as e:
-                        print(f"[Scheduler] Error running Monday review: {e}")
+                try:
+                    jobs = rules.get("marketing_mode_schedules_aest", {}).get("jobs", [])
+                    for line in routines.tick(datetime.now(AEST), jobs, runs_path, routine_runners):
+                        print(f"[Routines] {line}")
+                except Exception as e:
+                    print(f"[Routines] error: {e}")
         threading.Thread(target=_loop, daemon=True).start()
 
     _start_proactive_scheduler()
@@ -688,6 +766,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                         "timezone": sched.get("timezone", "Australia/Brisbane"),
                         "jobs": sched.get("jobs", []),
                         "pending_failures": pending,
+                        "runs": routines.load_runs(runs_path),
                     },
                 )
                 return
