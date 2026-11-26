@@ -21,11 +21,15 @@ class OllamaClient:
         text_model: str = "qwen3:8b",
         vision_model: str = "qwen3-vl:4b",
         timeout_s: int = 120,
+        num_ctx: int = 8192,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.text_model = text_model
         self.vision_model = vision_model
         self.timeout_s = timeout_s
+        # Same window as the crypto bot (crypto_paper.rules.NUM_CTX). Ollama reloads the whole model whenever two callers
+        # ask for different sizes, and its default (4,096) silently drops the start of long chats and tool results.
+        self.num_ctx = num_ctx
 
     def is_available(self) -> bool:
         try:
@@ -99,7 +103,7 @@ class OllamaClient:
                 "stream": False,
                 "think": False,
                 "keep_alive": "10m",
-                "options": {"temperature": 0.4, "num_predict": 500},
+                "options": {"temperature": 0.4, "num_predict": 500, "num_ctx": self.num_ctx},
                 "messages": self._messages(system_prompt, user_prompt, history),
             }
         ).encode("utf-8")
@@ -117,7 +121,7 @@ class OllamaClient:
                  model: str | None = None) -> dict[str, Any]:
         """One non-streamed chat call; returns the reply message (may carry tool_calls)."""
         body: dict[str, Any] = {"model": model or self.text_model, "stream": False, "think": False, "keep_alive": "10m",
-                                "options": {"temperature": 0.2, "num_predict": 700}, "messages": messages}
+                                "options": {"temperature": 0.2, "num_predict": 700, "num_ctx": self.num_ctx}, "messages": messages}
         if tools:
             body["tools"] = tools
         req = urllib.request.Request(f"{self.base_url}/api/chat", data=json.dumps(body).encode("utf-8"),
@@ -141,7 +145,7 @@ class OllamaClient:
                 "model": target_model,
                 "stream": True,
                 "keep_alive": "10m",
-                "options": {"temperature": 0.4, "num_predict": 500},
+                "options": {"temperature": 0.4, "num_predict": 500, "num_ctx": self.num_ctx},
                 "messages": self._messages(system_prompt, user_prompt, history),
             }
         ).encode("utf-8")

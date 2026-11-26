@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 ACTIONS = ("pause", "resume", "close_trades", "reset", "decide_now")
-ACCOUNTS = ("qwen", "journal", "trend", "flip", "all")
+ACCOUNTS = ("qwen", "journal", "veto", "veto_spot", "trend", "flip", "all")
 MAX_AGE_S = 120          # a command older than this (bot was off) is ignored, never carried out late
 
 

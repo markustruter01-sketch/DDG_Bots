@@ -748,7 +748,7 @@
   .cx-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .cx .btn.sm { min-height: 30px; padding: 0 10px; font-size: 12px; border-radius: 10px; }
   .cx .btn.armed { border-color: var(--ng-amber-edge); color: var(--ng-amber); }
-  .cx-accounts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+  .cx-accounts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .cx-acct { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .cx-acct .top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
   .cx-acct .name { font-family: var(--ng-mono, ui-monospace, monospace); font-size: 11px; letter-spacing: .06em; color: var(--ng-text-2); display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -876,16 +876,20 @@
       <section class="ng-glass cx-scroll" aria-label="Log"><h3>Log</h3><div id="cryptoEvents" class="core-log"></div></section>
     </div>
     <details class="ng-glass cx-more">
-      <summary>Rules, pass bar and what the journal shows Qwen</summary>
+      <summary>Rules, pass bar, whether the veto helps, and what the journal shows Qwen</summary>
       <div class="cx-more-grid">
         <div class="core-note" style="line-height:1.75">Fake money only: no exchange account, no keys, no real orders. Live Binance prices for BTC and ETH.
-          Every 15 minutes Qwen picks LONG, SHORT, WAIT (keep things as they are) or CLOSE for each coin, from 15-minute, 1-hour and 4-hour data; code does the rest.
+          Every 15 minutes: the trend rule and the coin flips act first, in plain code. Then, for each trade the trend rule has just opened, Qwen votes five times
+          TAKE or SKIP from facts worked out by code; &ldquo;Trend + Qwen veto&rdquo; opens it only on four TAKEs, so it can only ever trade less than the trend rule.
+          &ldquo;Veto, spot fees&rdquo; follows the same verdicts on the kind of venue an Australian retail account can open: long only, no borrowing, 0.8% a side.
+          Then Qwen picks LONG, SHORT, WAIT or CLOSE for each coin, and &ldquo;Qwen + journal&rdquo; does the same with code-counted results of its own closed trades.
+          Every model account trades at the price after its answer arrived, and stops are checked while it thinks.
           Each trade risks 0.5% of the account at its stop (stop 1.5&times; and target 2.5&times; the 1-hour ATR). At most 1.5&times; the account per position and 3&times; in total.
+          <span id="cryptoLimits"></span>
           Down 3% in a day: everything closes until midnight Brisbane. Buys fill at the ask and sells at the bid, plus Binance's 0.05% taker fee each way;
-          funding is charged at 10am, 6pm and 2am Brisbane when the rate can be read. A late or bad answer counts as a missed decision.
-          &ldquo;Qwen + journal&rdquo; also sees code-counted results of its own closed trades (numbers only after 30).
-          The coin flip and trend rule open only when they have nothing open and exit only at the stop or target. Pause stops new trades; open trades still hit their stop or target.
-          Reset archives the old account first. Changing any rule starts a new record.
+          funding is charged at 10am, 6pm and 2am Brisbane at the rate Binance settled, or the trade is flagged. A late or bad answer counts as a missed decision.
+          The 200 coin flips run under the same rules: a result is ranked against all of them. Pause stops new trades; open trades still hit their stop or target.
+          Reset archives the old account first. A changed rule, prompt or model file starts a new record. <span id="cryptoPinned"></span>
           <div style="margin-top:8px" id="cryptoPassBar"></div></div>
         <div id="cryptoScorecard"></div>
       </div>
@@ -2883,11 +2887,13 @@ function renderCoreCrypto(st) {
   }
   el.innerHTML = `<div class="core-head"><span class="mono">Plutus &middot; paper crypto</span><span class="mono"><span class="dot ${st.running ? 'working live' : 'late'}" aria-hidden="true" style="margin-right:6px"></span>${st.running ? 'Live' : 'Stopped'}</span></div>
     <div style="font-size:30px;font-weight:300;margin-top:6px;font-variant-numeric:tabular-nums">${esc(usd(st.qwen.equity))}</div>
-    <div class="core-note">${esc(pctTxt(st.qwen.return_pct))} · with journal ${esc(usd(st.qwen_journal && st.qwen_journal.equity))} · trend rule ${esc(usd(st.trend_rule && st.trend_rule.equity))} · coin flip ${esc(usd(st.coin_flip.equity))} · hold BTC ${esc(usd(st.hold_btc))}</div>`;
+    <div class="core-note">${esc(pctTxt(st.qwen.return_pct))} · with journal ${esc(usd(st.qwen_journal && st.qwen_journal.equity))} · trend + veto ${esc(usd(st.trend_veto && st.trend_veto.equity))} · trend rule ${esc(usd(st.trend_rule && st.trend_rule.equity))} · coin flips (middle) ${esc(usd(st.coin_flips && st.coin_flips.median))} · hold BTC ${esc(usd(st.hold_btc))}</div>`;
 }
 const CX_ACCOUNTS = [
   { key: 'qwen', state: 'qwen', name: 'Qwen', sw: 'border-top:2px solid #6cc7f0' },
   { key: 'journal', state: 'qwen_journal', name: 'Qwen + journal', sw: 'border-top:2px solid rgba(255,255,255,.92)' },
+  { key: 'veto', state: 'trend_veto', name: 'Trend + Qwen veto', sw: 'border-top:2px solid #3ddc97' },
+  { key: 'veto_spot', state: 'veto_spot', name: 'Veto, spot fees', sw: 'border-top:2px dashed #3ddc97' },
   { key: 'trend', state: 'trend_rule', name: 'Trend rule', sw: 'border-top:2px dotted rgba(255,255,255,.45)' },
   { key: 'flip', state: 'coin_flip', name: 'Coin flip', sw: 'border-top:2px solid #a78bfa' },
 ];
@@ -2913,7 +2919,7 @@ async function cxSend(btn) {
 function cxChart(st) {
   const pts = st.curve || [], chart = document.getElementById('cryptoChart');
   if (pts.length < 2) { chart.innerHTML = '<div class="core-note" style="margin-top:8px">The chart starts after two decisions.</div>'; document.getElementById('cryptoRange').textContent = ''; return; }
-  const keys = ['hold', 'flip', 'trend', 'journal', 'qwen'];
+  const keys = ['hold', 'flip', 'trend', 'veto_spot', 'veto', 'journal', 'qwen'];
   const all = pts.flatMap(p => keys.map(k => p[k]).filter(v => v != null));
   const lo = Math.min(...all), hi = Math.max(...all), span = Math.max(1, hi - lo), W = 1000, H = 200;
   const y = v => (H - (v - lo) / span * (H - 16) - 8).toFixed(1);
@@ -2924,6 +2930,8 @@ function cxChart(st) {
     <polyline points="${line('hold')}" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.5" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/>
     <polyline points="${line('flip')}" fill="none" stroke="#a78bfa" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
     <polyline points="${line('trend')}" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="1.5" stroke-dasharray="2 4" vector-effect="non-scaling-stroke"/>
+    <polyline points="${line('veto_spot')}" fill="none" stroke="#3ddc97" stroke-width="1.5" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/>
+    <polyline points="${line('veto')}" fill="none" stroke="#3ddc97" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
     <polyline points="${line('journal')}" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
     <polyline points="${line('qwen')}" fill="none" stroke="#6cc7f0" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
   document.getElementById('cryptoRange').textContent = `${usd(lo)} – ${usd(hi)} · faint line = $100,000`;
@@ -2936,7 +2944,7 @@ async function loadCrypto() {
   document.querySelectorAll('.cx-actions .btn').forEach(b => { b.disabled = !live; });
   if (!st || !st.qwen) { tiles.innerHTML = `<section class="ng-glass" style="grid-column:1/-1">${esc((st && st.note) || 'Not running yet.')}</section>`; return; }
   const next = (() => { const d = new Date(); d.setSeconds(0, 0); d.setMinutes(Math.floor(d.getMinutes() / 15) * 15 + 15); return d.toTimeString().slice(0, 5); })();
-  const jm = st.journal_brain ? st.journal_brain.missed : 0;
+  const jm = (st.journal_brain ? st.journal_brain.missed : 0) + (st.veto_brain ? st.veto_brain.missed : 0);
   document.getElementById('cryptoStatus').innerHTML = `<span class="dot ${live ? 'working live' : 'late'}" aria-hidden="true" style="margin-right:6px"></span>` +
     esc(`${live ? 'Live' : 'Stopped ' + (st.age_seconds || '?') + ' s ago'} · rules ${st.rules_version} · since ${String(st.started).slice(5, 16).replace('T', ' ')} · ` +
         `${st.decisions} decisions · ${st.missed + jm} missed · ${st.avg_decision_seconds == null ? '—' : st.avg_decision_seconds + ' s'} per answer` + (live ? ` · next ${next}` : ''));
@@ -2944,6 +2952,8 @@ async function loadCrypto() {
   const pa = document.getElementById('cxPauseAll');
   pa.dataset.cx = allPaused ? 'resume' : 'pause'; pa.textContent = allPaused ? 'Resume all' : 'Pause all';
 
+  const rank = a => { const r = (st.rank_vs_flips || {})[a.state]; return r && r.of ? `ahead of ${r.beats} of ${r.of} coin flips` : ''; };
+  const cf = st.coin_flips || {};
   const card = (a, b) => {
     const pos = Object.entries(b.positions || {});
     const tag = b.locked_today ? '<span class="tag problem">Stopped for today</span>' : b.paused ? '<span class="tag">Paused</span>' : pos.length ? `<span class="tag">${pos.length} open</span>` : '';
@@ -2952,6 +2962,7 @@ async function loadCrypto() {
       <div class="top"><span class="name"><span class="cx-sw" style="${a.sw}" aria-hidden="true"></span>${esc(a.name)}</span>${tag}</div>
       <div class="big">${esc(usd(b.equity))}</div>
       <div class="core-note">${esc(pctTxt(b.return_pct))} · ${b.trades} trades${b.win_rate == null ? '' : ' · ' + b.win_rate + '% won'}${since}</div>
+      ${rank(a) ? `<div class="core-note">${esc(rank(a))}</div>` : ''}
       <div class="core-note">${pos.length ? esc(pos.map(([s, p]) => s.replace('USDT', '') + ' ' + p.side.toLowerCase()).join(' · ')) : 'Nothing open'} · fees ${esc(usd(b.fees))}</div>
       <div class="btns">
         <button class="btn sm secondary" data-cx="${b.paused ? 'resume' : 'pause'}" data-acct="${a.key}" onclick="cxSend(this)" ${live ? '' : 'disabled'}>${b.paused ? 'Resume' : 'Pause'}</button>
@@ -2960,6 +2971,10 @@ async function loadCrypto() {
       </div></section>`;
   };
   tiles.innerHTML = CX_ACCOUNTS.filter(a => st[a.state]).map(a => card(a, st[a.state])).join('') +
+    (cf.n ? `<section class="ng-glass cx-acct" aria-label="Coin flips"><div class="top"><span class="name"><span class="cx-sw" style="border-top:2px dotted #a78bfa" aria-hidden="true"></span>Coin flips &times; ${cf.n}</span></div>
+      <div class="big">${esc(usd(cf.median))}</div><div class="core-note">the middle one of ${cf.n} &middot; luck alone</div>
+      <div class="core-note">5% mark ${esc(usd(cf.p5))} &middot; 95% mark ${esc(usd(cf.p95))}</div>
+      <div class="core-note">Same rules and limits as every account</div></section>` : '') +
     `<section class="ng-glass cx-acct" aria-label="Hold BTC"><div class="top"><span class="name"><span class="cx-sw" style="border-top:2px dashed rgba(255,255,255,.6)" aria-hidden="true"></span>Hold BTC</span></div>
       <div class="big">${esc(usd(st.hold_btc))}</div><div class="core-note">${esc(pctTxt(st.hold_btc == null ? null : (st.hold_btc / 100000 - 1) * 100))} · bought at the start, never traded</div>
       <div class="core-note">Resets only with Reset all</div></section>`;
@@ -2969,7 +2984,11 @@ async function loadCrypto() {
     ? `<div class="cx-dec"><span class="dot late" aria-hidden="true" style="margin-right:8px"></span>Missed<div class="why">${esc(d.why || '')}</div></div>`
     : Object.entries(d.decisions || {}).map(([sym, x]) => `<div class="cx-dec" title="${esc(x.reason)}"><strong>${esc(sym.replace('USDT', ''))}</strong> ${esc(x.action)} <span class="core-note">${esc(x.play)} · ${esc(String(x.confidence))}</span><div class="why">${esc(x.reason)}</div></div>`).join('')
       + ((d.result || []).length ? `<div class="core-note">${esc(d.result.join('; '))}</div>` : ''));
-  document.getElementById('cryptoDecision').innerHTML = (decBlock('Qwen', st.last_decision) + decBlock('Qwen + journal', st.journal_brain && st.journal_brain.last_decision)) || '<div class="core-note">No decision yet.</div>';
+  const vetoBlock = d => !d ? '' : `<div class="mono" style="margin-top:6px">Trend + Qwen veto · ${esc(cxTime(d.at))}${d.missed ? '' : ' · ' + esc(String(d.seconds)) + ' s'}</div>` + (d.missed
+    ? `<div class="cx-dec"><span class="dot late" aria-hidden="true" style="margin-right:8px"></span>Missed<div class="why">${esc(d.why || '')}</div></div>`
+    : Object.entries(d.verdicts || {}).map(([sym, v]) => `<div class="cx-dec" title="${esc(v.reason)}"><strong>${esc(sym.replace('USDT', ''))}</strong> ${v.take ? 'TAKE' : 'SKIP'} <span class="core-note">${esc(String(v.votes_take))} said take · ${esc(String(v.votes_skip))} said skip</span><div class="why">${esc(v.reason)}</div></div>`).join('')
+      + ((d.result || []).length ? `<div class="core-note">${esc(d.result.join('; '))}</div>` : ''));
+  document.getElementById('cryptoDecision').innerHTML = (vetoBlock(st.veto_brain && st.veto_brain.last_decision) + decBlock('Qwen', st.last_decision) + decBlock('Qwen + journal', st.journal_brain && st.journal_brain.last_decision)) || '<div class="core-note">No decision yet.</div>';
 
   const open = CX_ACCOUNTS.filter(a => st[a.state]).flatMap(a => Object.entries(st[a.state].positions || {}).map(([s, p]) => ({ who: a.name, s, p })));
   document.getElementById('cryptoPositions').innerHTML = open.length ? `<table><thead><tr><th>Account</th><th>Coin</th><th>Side</th><th>Entry</th><th>Stop</th><th>Target</th></tr></thead><tbody>` +
@@ -2983,10 +3002,16 @@ async function loadCrypto() {
 
   const pb = document.getElementById('cryptoPassBar');
   if (pb) pb.textContent = st.pass_bar ? 'Pass bar: ' + st.pass_bar : '';
+  const lim = document.getElementById('cryptoLimits'); if (lim) lim.textContent = st.limits || '';
+  const pin = document.getElementById('cryptoPinned'); if (pin) pin.textContent = st.fingerprint ? `Rules and prompts ${st.fingerprint}; model ${st.model || ''} ${st.model_digest || '(file not read yet)'}.` : '';
   const sc = st.scorecard, out = document.getElementById('cryptoScorecard');
   if (sc && out) {
     const row = (label, g) => `<div class="core-note">${esc(label)}: ${g.win_rate_pct == null ? esc(g.trades + ' trades, too few to judge') : esc(g.trades + ' trades · ' + g.win_rate_pct + '% won · ' + pctTxt(g.avg_result_pct_after_costs) + ' avg')}</div>`;
-    out.innerHTML = `<div class="mono">What the journal shows Qwen</div>${row('All closed trades', sc.all)}` +
+    const vs = st.veto_split;
+    out.innerHTML = (vs ? `<div class="mono">Did the veto help?</div>${row('Trades Qwen took', vs.taken)}${row('Trades Qwen skipped', vs.skipped)}
+      <div class="core-note">${esc(vs.proposals + ' proposals · ' + vs.not_answered + ' not answered · ' + vs.still_open_or_unknown + ' still open')}</div>
+      <div class="core-note" style="margin-bottom:10px">Both rows are the trend rule's own results. The veto helps only if the skipped trades did clearly worse.</div>` : '') +
+      `<div class="mono">What the journal shows Qwen</div>${row('All closed trades', sc.all)}` +
       ['by_side', 'by_play', 'by_exit', 'by_confidence'].flatMap(k => Object.entries(sc[k] || {}).map(([n, g]) => row(n, g))).join('');
   }
 }

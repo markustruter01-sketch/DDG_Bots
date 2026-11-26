@@ -86,6 +86,11 @@ Also fixed 26 Nov: the server's video watcher never ran a job (a tuple was used 
 
 ## Phase 5 — Qwen crypto paper bot ✅ built and live 26 Nov (`2026.11.26-crypto`, rules v1)
 
+Rules v4 (27 Nov, `2026.11.27-crypto-v4`): trades fill at the price after Qwen answers; new accounts "Trend + Qwen
+veto" and "Veto, spot fees"; cost limits for every account; 200 coin flips; settled funding; the model file and the
+prompts are pinned; every decision is recorded; and a replay tool (`crypto_paper/replay.py`) tests ideas on past
+prices with the last 30 days held back. Details in `docs/HOW-IT-WORKS.md`. Deploying it starts a fresh record.
+
 ### Phase 5 original list
 
 - **5.1** Separate folder `DDG_Crypto_Paper` with its own page in Night Glass style. It shares Ollama, with GPU priority.

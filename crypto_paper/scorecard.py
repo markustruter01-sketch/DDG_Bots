@@ -43,3 +43,40 @@ def build(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
             **{g: {k: _stats(v) for k, v in sorted(d.items())} for g, d in groups.items()},
             "how_to_read": ("Results are % of trade size after fees, spread and funding. Groups under "
                             f"{R.MIN_SAMPLE} trades are luck, not a pattern: ignore them.")}
+
+
+def veto_split(veto_log: List[Dict[str, Any]], trend_trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Did the veto help? Every proposal was a real trade in the trend-rule account, so the trades Qwen skipped have a
+    known result. If the skipped ones did no worse than the taken ones, the veto added nothing."""
+    result = {(t["symbol"], t["opened"]): t for t in trend_trades}
+    taken, skipped, open_or_unknown, not_answered = [], [], 0, 0
+    for v in veto_log:
+        t = result.get((v.get("symbol"), v.get("trend_opened")))
+        if v.get("take") is None:
+            not_answered += 1             # Qwen missed it, or the veto accounts could not have opened it anyway
+        elif t is None:
+            open_or_unknown += 1          # the trend rule's trade is still open (or its record was reset)
+        elif v["take"]:
+            taken.append(t)
+        else:
+            skipped.append(t)
+    return {"proposals": len(veto_log), "taken": _stats(taken), "skipped": _stats(skipped),
+            "still_open_or_unknown": open_or_unknown, "not_answered": not_answered,
+            "how_to_read": ("Both rows are the trend rule's own results for the same trades, split by Qwen's verdict. "
+                            "The veto is useful only if 'skipped' is clearly worse than 'taken'. Under "
+                            f"{R.MIN_SAMPLE} trades in a row means luck, not a pattern.")}
+
+
+def rank_among(equity: float, others: List[float]) -> Dict[str, Any]:
+    """How many of the coin-flip accounts this account is ahead of."""
+    return {"beats": sum(1 for x in others if equity > x), "of": len(others)}
+
+
+def spread(values: List[float]) -> Dict[str, Any]:
+    """Where the coin flips sit: the middle one and the 5% and 95% marks."""
+    if not values:
+        return {"n": 0}
+    xs = sorted(values)
+    at = lambda q: xs[min(len(xs) - 1, max(0, int(round(q * (len(xs) - 1)))))]
+    return {"n": len(xs), "worst": round(xs[0], 2), "p5": round(at(0.05), 2), "median": round(at(0.5), 2),
+            "p95": round(at(0.95), 2), "best": round(xs[-1], 2)}
