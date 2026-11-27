@@ -3,6 +3,9 @@ title DDG - Restart Bot Studio
 echo Stopping the old Bot Studio (whatever holds port 8765) and the old video watcher and crypto bot...
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":8765" ^| findstr "LISTENING"') do taskkill /F /PID %%p >nul 2>&1
 powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.Name -like 'python*' -and ($_.CommandLine -like '*studio.pipeline watch*' -or $_.CommandLine -like '*crypto_paper.runner*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+echo Restarting Ollama too (clears it if it has frozen; Qwen reloads on the first question)...
+taskkill /F /IM "ollama app.exe" >nul 2>&1
+taskkill /F /IM ollama.exe >nul 2>&1
 ping -n 3 127.0.0.1 >nul
 echo Starting the new Bot Studio...
 wscript.exe "%~dp0scripts\silent_launch.vbs"
