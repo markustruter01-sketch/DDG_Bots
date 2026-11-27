@@ -762,6 +762,14 @@
   .cx-mid > section { height: 250px; }
   .cx-low { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr); gap: 10px; }
   .cx-low > section { height: 230px; }
+  /* 8 account cards (v4): keep the page on one 1080p screen */
+  .cx-acct { padding: 10px 14px !important; gap: 2px; }
+  .cx-acct .big { font-size: 22px; }
+  .cx-acct .btns { margin-top: 4px; }
+  .cx-mid > section { height: 210px; }
+  .cx-mid #cryptoChart svg { height: 160px; }
+  .cx-low > section { height: 160px; }
+  @media (min-height: 1150px) { .cx-mid > section { height: 260px; } .cx-mid #cryptoChart svg { height: 200px; } .cx-low > section { height: 240px; } }
   .cx-scroll { overflow: auto; }
   .cx-dec { padding: 5px 0; border-bottom: 1px solid var(--ng-hairline); font-size: 13px; }
   .cx-dec:last-child { border-bottom: 0; }
