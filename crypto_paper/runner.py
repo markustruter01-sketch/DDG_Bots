@@ -405,8 +405,8 @@ class Paper:
         pos = book.open_view(prices, datetime.now(AEST))
         now = now_iso()
         can_open = {s: [side for side in ("LONG", "SHORT") if book.refusal(s, side, now) is None] for s in R.SYMBOLS}
-        must_pick = [s for s in R.SYMBOLS if s not in book.positions and s not in book.pending and can_open[s]]
-        kw = {"must_pick": must_pick, "can_open": can_open}
+        must = brain.must_pick(list(pos), can_open)
+        kw = {"can_open": can_open}
         got, info = self.decide(snaps, pos, **kw) if track is None else self.decide(snaps, pos, track_record=track, **kw)
         fresh = self._fresh(prices)
         record[label] = {"open_positions": pos, "answer": got, "info": info}
@@ -416,7 +416,7 @@ class Paper:
         prices, at = fresh, now_iso()
         m["decision_seconds"] = (m["decision_seconds"] + [info["seconds"]])[-200:]
         notes = []
-        for sym in must_pick:
+        for sym in must:
             if got[sym]["action"] not in ("LONG", "SHORT"):           # it was told to pick a side and didn't
                 m["no_pick"] = m.get("no_pick", 0) + 1
                 notes.append(f"{sym}: did not pick a side ({got[sym]['action']}), so nothing opened")

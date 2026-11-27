@@ -268,7 +268,7 @@ class TestMustPick(unittest.TestCase):
 
     def test_flat_coins_are_must_pick_and_get_traded(self) -> None:
         p = self.run_round({"BTCUSDT": "LONG", "ETHUSDT": "SHORT"})
-        self.assertEqual(self.asked[0]["must_pick"], list(R.SYMBOLS))
+        self.assertEqual(brain.must_pick([], self.asked[0]["can_open"]), list(R.SYMBOLS))
         self.assertEqual(p.qwen.positions["BTCUSDT"]["side"], "LONG")
         self.assertEqual(p.qwen.positions["ETHUSDT"]["side"], "SHORT")
 
@@ -281,9 +281,10 @@ class TestMustPick(unittest.TestCase):
     def test_blocked_coin_is_not_forced(self) -> None:
         def cool(p, prices):
             p.qwen.last_exit["BTCUSDT"] = now_iso()                 # just exited BTC: cooldown blocks both sides
-        self.run_round({"BTCUSDT": "WAIT", "ETHUSDT": "LONG"}, prep=cool)
-        self.assertEqual(self.asked[0]["must_pick"], ["ETHUSDT"])
+        p = self.run_round({"BTCUSDT": "WAIT", "ETHUSDT": "LONG"}, prep=cool)
         self.assertEqual(self.asked[0]["can_open"]["BTCUSDT"], [])
+        self.assertEqual(brain.must_pick([], self.asked[0]["can_open"]), ["ETHUSDT"])
+        self.assertEqual(p.meta.get("no_pick", 0), 0)                       # WAIT on a blocked coin is not a refusal
 
 
 class TestRunnerV4(unittest.TestCase):
@@ -606,13 +607,30 @@ class TestRealRequestPath(unittest.TestCase):
         self.assertEqual((req["model"], req["stream"], req["think"]), (R.MODEL, False, False))
         self.assertEqual(req["options"]["num_ctx"], R.NUM_CTX)
         self.assertEqual(req["keep_alive"], R.KEEP_ALIVE)
-        # v5: nothing open -> the answer format itself only allows LONG or SHORT, and the question says so
-        self.assertEqual(req["format"]["properties"]["decisions"]["items"]["properties"]["action"]["enum"], ["LONG", "SHORT"])
+        # v5: one required answer per coin; nothing open -> each coin may only be LONG or SHORT, and the question says so
+        coins = req["format"]["properties"]["decisions"]
+        self.assertEqual(coins["required"], list(R.SYMBOLS))
+        self.assertEqual([coins["properties"][c]["properties"]["action"]["enum"] for c in R.SYMBOLS], [["LONG", "SHORT"]] * 2)
         self.assertEqual(json.loads(req["messages"][1]["content"])["must_pick"], list(R.SYMBOLS))
-        # a trade open -> the full format (WAIT keeps it, CLOSE exits it)
-        self.assertEqual(o.seen[1]["format"], brain.SCHEMA)
+        # BTC held -> BTC may be anything (WAIT keeps it), ETH still has to pick a side
+        coins2 = o.seen[1]["format"]["properties"]["decisions"]["properties"]
+        self.assertEqual(coins2["BTCUSDT"]["properties"]["action"]["enum"], list(brain.ACTIONS))
+        self.assertEqual(coins2["ETHUSDT"]["properties"]["action"]["enum"], ["LONG", "SHORT"])
         self.assertEqual(json.loads(o.seen[1]["messages"][1]["content"])["must_pick"], ["ETHUSDT"])
         self.assertEqual(got2["BTCUSDT"]["action"], "WAIT")
+
+    def test_allowed_actions_follow_the_limits(self) -> None:
+        a = brain.allowed_actions(["BTCUSDT"], {"BTCUSDT": [], "ETHUSDT": ["SHORT"]})
+        self.assertEqual(a["BTCUSDT"], list(brain.ACTIONS))                 # held: keep, close or reverse
+        self.assertEqual(a["ETHUSDT"], ["SHORT", "WAIT"])                   # one bet per direction blocks LONG: not forced
+        self.assertEqual(brain.allowed_actions([], {"BTCUSDT": [], "ETHUSDT": ["LONG", "SHORT"]})["BTCUSDT"], ["WAIT"])
+        self.assertEqual(brain.must_pick(["BTCUSDT"], {"BTCUSDT": [], "ETHUSDT": ["SHORT"]}), [])
+
+    def test_per_coin_answer_parses_and_a_missing_coin_is_refused(self) -> None:
+        both = {"decisions": {s: {"action": "LONG", "play": "TREND", "confidence": .5, "reason": "r"} for s in R.SYMBOLS}}
+        self.assertEqual(brain.parse(json.dumps(both))["ETHUSDT"]["action"], "LONG")
+        one = {"decisions": {"ETHUSDT": {"action": "SHORT", "play": "NONE", "confidence": .7, "reason": "r"}}}
+        self.assertIsNone(brain.parse(json.dumps(one)))                      # what qwen3:8b sent at 13:15 on 27 Nov
 
     def test_veto_votes_over_http_and_stops_early(self) -> None:
         take = json.dumps({"verdicts": [{"symbol": "BTCUSDT", "verdict": "TAKE", "reason": "with the trend"}]})

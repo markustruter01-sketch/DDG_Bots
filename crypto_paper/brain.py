@@ -33,17 +33,18 @@ SYSTEM = (
     "of those, which can take hours. Fees are charged on every entry and exit. Code also enforces limits: after any exit "
     f"in a coin, no new trade in that coin for {R.COOLDOWN_MINUTES} minutes; at most {R.MAX_ENTRIES_PER_DAY} new trades a "
     "day; and BTC and ETH in the same direction count as one bet. you_can_open shows which sides each coin can still "
-    "open. Use only the numbers given. Reply with JSON only."
+    "open. Answer for both coins every time. Use only the numbers given. Reply with JSON only."
 )
+ITEM = {"type": "object", "properties": {
+    "action": {"type": "string", "enum": list(ACTIONS)},
+    "play": {"type": "string", "enum": ["TREND", "FADE", "NONE"]},
+    "confidence": {"type": "number"},
+    "reason": {"type": "string"}},
+    "required": ["action", "play", "confidence", "reason"]}
+# v5: one required entry per coin, so an answer can never leave a coin out
 SCHEMA = {
     "type": "object",
-    "properties": {"decisions": {"type": "array", "items": {"type": "object", "properties": {
-        "symbol": {"type": "string", "enum": list(R.SYMBOLS)},
-        "action": {"type": "string", "enum": list(ACTIONS)},
-        "play": {"type": "string", "enum": ["TREND", "FADE", "NONE"]},
-        "confidence": {"type": "number"},
-        "reason": {"type": "string"}},
-        "required": ["symbol", "action", "play", "confidence", "reason"]}}},
+    "properties": {"decisions": {"type": "object", "properties": {s: ITEM for s in R.SYMBOLS}, "required": list(R.SYMBOLS)}},
     "required": ["decisions"],
 }
 JOURNAL_NOTE = (
@@ -123,7 +124,9 @@ def parse(text: str) -> Optional[Dict[str, Dict[str, Any]]]:
     try:
         data = json.loads(text)
         out = {}
-        for d in data["decisions"]:
+        raw = data["decisions"]
+        items = [dict(v, symbol=k) for k, v in raw.items()] if isinstance(raw, dict) else raw
+        for d in items:
             sym, act = d["symbol"], d["action"]
             if sym in R.SYMBOLS and act in ACTIONS:
                 out[sym] = {"action": act, "play": d.get("play", "NONE"),
@@ -146,14 +149,31 @@ def parse_veto(text: str, wanted: List[str]) -> Optional[Dict[str, Dict[str, str
         return None
 
 
-def picker_schema(must_pick: Optional[List[str]], open_coins: List[str]) -> Dict[str, Any]:
-    """When every coin must be picked (nothing open, nothing blocked), the answer format itself only allows LONG or
-    SHORT, so the model cannot drift back to WAIT. Otherwise the full format, and the runner checks the rest."""
-    if must_pick and set(must_pick) == set(R.SYMBOLS) and not open_coins:
-        s = json.loads(json.dumps(SCHEMA))
-        s["properties"]["decisions"]["items"]["properties"]["action"]["enum"] = ["LONG", "SHORT"]
-        return s
-    return SCHEMA
+def allowed_actions(open_coins: List[str], can_open: Optional[Dict[str, List[str]]] = None) -> Dict[str, List[str]]:
+    """The choices each coin's answer may contain (the one place this is decided; the runner uses it too).
+    Holding the coin: any action. Flat and free to open either side: LONG or SHORT only (must pick).
+    Flat and one side blocked by a limit: that side or WAIT. Flat and fully blocked: WAIT."""
+    out = {}
+    for s in R.SYMBOLS:
+        sides = ["LONG", "SHORT"] if can_open is None else list(can_open.get(s, []))
+        if s in open_coins:
+            out[s] = list(ACTIONS)
+        elif len(sides) == 2:
+            out[s] = ["LONG", "SHORT"]
+        else:
+            out[s] = sides + ["WAIT"]
+    return out
+
+
+def must_pick(open_coins: List[str], can_open: Optional[Dict[str, List[str]]] = None) -> List[str]:
+    return [s for s, acts in allowed_actions(open_coins, can_open).items() if acts == ["LONG", "SHORT"]]
+
+
+def picker_schema(allowed: Dict[str, List[str]]) -> Dict[str, Any]:
+    s = json.loads(json.dumps(SCHEMA))
+    for sym, acts in allowed.items():
+        s["properties"]["decisions"]["properties"][sym]["properties"]["action"]["enum"] = acts
+    return s
 
 
 def _picker_question(snapshots, positions, track_record, must_pick=None, can_open=None) -> Tuple[str, str]:
@@ -166,14 +186,13 @@ def _picker_question(snapshots, positions, track_record, must_pick=None, can_ope
 
 def decide(snapshots: List[Dict[str, Any]], positions: Dict[str, Any], base_url: str = BASE_URL,
            track_record: Optional[Dict[str, Any]] = None, model: Optional[str] = None, think: bool = False,
-           ask: Optional[Ask] = None, sample: int = 0, must_pick: Optional[List[str]] = None,
+           ask: Optional[Ask] = None, sample: int = 0,
            can_open: Optional[Dict[str, List[str]]] = None) -> Tuple[Optional[Dict], Dict[str, Any]]:
     """Returns (decisions or None, info with timing and any error). track_record given = the journal version.
-    must_pick: coins where the model has to choose LONG or SHORT (no open trade, not blocked by a limit)."""
-    if must_pick is None:
-        must_pick = [s for s in R.SYMBOLS if s not in positions]
-    system, user = _picker_question(snapshots, positions, track_record, must_pick, can_open)
-    schema = picker_schema(must_pick, list(positions))
+    can_open: which sides each coin may still open (from the account's limits); None = both."""
+    allowed = allowed_actions(list(positions), can_open)
+    system, user = _picker_question(snapshots, positions, track_record, must_pick(list(positions), can_open), can_open)
+    schema = picker_schema(allowed)
     if ask is None:
         content, info = ask_ollama(system, user, schema, model or R.MODEL, think, sample, base_url)
     else:

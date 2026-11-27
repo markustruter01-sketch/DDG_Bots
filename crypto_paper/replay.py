@@ -363,12 +363,13 @@ class Replay:
                 track = scorecard.build(b.trades) if a.get("journal") else None
                 view = b.open_view(prices, now)
                 market_view = [snaps[s] for s in R.SYMBOLS]
+                can_open = {s: [side for side in ("LONG", "SHORT") if b.refusal(s, side, at) is None] for s in R.SYMBOLS}
                 if a.get("votes"):
                     got, info = brain.decide_vote(market_view, view, a["votes"], a["need"], track, self.model,
                                                   bool(a.get("think")), self.ask or _no_model)
                 else:
                     got, info = brain.decide(market_view, view, track_record=track, model=self.model,
-                                             think=bool(a.get("think")), ask=self.ask or _no_model)
+                                             think=bool(a.get("think")), ask=self.ask or _no_model, can_open=can_open)
                 if got is None:
                     self.missed[k] += 1
                     continue
