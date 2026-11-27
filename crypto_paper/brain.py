@@ -24,14 +24,16 @@ BASE_URL = "http://127.0.0.1:11434"
 
 SYSTEM = (
     "You are Plutus, a crypto trader in a PAPER-MONEY research test (no real money). Every 15 minutes you see live data "
-    "for BTC and ETH and choose one action for each coin: LONG (buy, or keep a long), SHORT (sell short, or keep a short), "
-    "WAIT (open nothing new and keep any open trade as it is) or CLOSE (exit the open trade now). Code sets the size, the "
-    f"stop ({R.STOP_ATR} x the 1-hour ATR) and the profit target ({R.TARGET_ATR} x the 1-hour ATR); most trades should end "
-    "at one of those, which can take hours. Fees are charged on every entry and exit, so trading often costs money. "
-    f"Code also enforces limits: after any exit in a coin, no new trade in that coin for {R.COOLDOWN_MINUTES} minutes; at "
-    f"most {R.MAX_ENTRIES_PER_DAY} new trades a day; and BTC and ETH in the same direction count as one bet, so the second "
-    "one is refused. WAIT is a good answer most of the time. Only open a trade when the 1-hour and 4-hour picture clearly "
-    "supports it; SHORT is as valid as LONG when they point down. Use only the numbers given. Reply with JSON only."
+    "for BTC and ETH. The test measures whether your read of the market beats a coin flip, so for every coin listed in "
+    "must_pick (coins where you have no open trade and are allowed to open one) you MUST choose LONG (buy) or SHORT (sell "
+    "short): the side you think is more likely to reach its profit target before its stop. Being unsure is normal: say "
+    "so with a low confidence (0 to 1), but still pick a side; SHORT is as valid as LONG. For a coin where you already "
+    "have a trade open: WAIT keeps it, CLOSE exits it now, and the opposite side reverses it. Code sets the size, the "
+    f"stop ({R.STOP_ATR} x the 1-hour ATR) and the profit target ({R.TARGET_ATR} x the 1-hour ATR); most trades end at one "
+    "of those, which can take hours. Fees are charged on every entry and exit. Code also enforces limits: after any exit "
+    f"in a coin, no new trade in that coin for {R.COOLDOWN_MINUTES} minutes; at most {R.MAX_ENTRIES_PER_DAY} new trades a "
+    "day; and BTC and ETH in the same direction count as one bet. you_can_open shows which sides each coin can still "
+    "open. Use only the numbers given. Reply with JSON only."
 )
 SCHEMA = {
     "type": "object",
@@ -144,8 +146,19 @@ def parse_veto(text: str, wanted: List[str]) -> Optional[Dict[str, Dict[str, str
         return None
 
 
-def _picker_question(snapshots, positions, track_record) -> Tuple[str, str]:
-    payload: Dict[str, Any] = {"market": snapshots, "your_open_positions": positions}
+def picker_schema(must_pick: Optional[List[str]], open_coins: List[str]) -> Dict[str, Any]:
+    """When every coin must be picked (nothing open, nothing blocked), the answer format itself only allows LONG or
+    SHORT, so the model cannot drift back to WAIT. Otherwise the full format, and the runner checks the rest."""
+    if must_pick and set(must_pick) == set(R.SYMBOLS) and not open_coins:
+        s = json.loads(json.dumps(SCHEMA))
+        s["properties"]["decisions"]["items"]["properties"]["action"]["enum"] = ["LONG", "SHORT"]
+        return s
+    return SCHEMA
+
+
+def _picker_question(snapshots, positions, track_record, must_pick=None, can_open=None) -> Tuple[str, str]:
+    payload: Dict[str, Any] = {"market": snapshots, "your_open_positions": positions,
+                               "must_pick": list(must_pick or []), "you_can_open": can_open or {}}
     if track_record is not None:
         payload["your_track_record"] = track_record
     return SYSTEM + (JOURNAL_NOTE if track_record is not None else ""), json.dumps(payload, ensure_ascii=False)
@@ -153,13 +166,18 @@ def _picker_question(snapshots, positions, track_record) -> Tuple[str, str]:
 
 def decide(snapshots: List[Dict[str, Any]], positions: Dict[str, Any], base_url: str = BASE_URL,
            track_record: Optional[Dict[str, Any]] = None, model: Optional[str] = None, think: bool = False,
-           ask: Optional[Ask] = None, sample: int = 0) -> Tuple[Optional[Dict], Dict[str, Any]]:
-    """Returns (decisions or None, info with timing and any error). track_record given = the journal version."""
-    system, user = _picker_question(snapshots, positions, track_record)
+           ask: Optional[Ask] = None, sample: int = 0, must_pick: Optional[List[str]] = None,
+           can_open: Optional[Dict[str, List[str]]] = None) -> Tuple[Optional[Dict], Dict[str, Any]]:
+    """Returns (decisions or None, info with timing and any error). track_record given = the journal version.
+    must_pick: coins where the model has to choose LONG or SHORT (no open trade, not blocked by a limit)."""
+    if must_pick is None:
+        must_pick = [s for s in R.SYMBOLS if s not in positions]
+    system, user = _picker_question(snapshots, positions, track_record, must_pick, can_open)
+    schema = picker_schema(must_pick, list(positions))
     if ask is None:
-        content, info = ask_ollama(system, user, SCHEMA, model or R.MODEL, think, sample, base_url)
+        content, info = ask_ollama(system, user, schema, model or R.MODEL, think, sample, base_url)
     else:
-        content, info = ask(system, user, SCHEMA, model or R.MODEL, think, sample)
+        content, info = ask(system, user, schema, model or R.MODEL, think, sample)
     if content is None:
         return None, info
     got = parse(content)

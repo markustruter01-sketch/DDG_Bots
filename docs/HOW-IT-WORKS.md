@@ -39,7 +39,7 @@ If the studio was off at a routine's time, it runs when the studio comes back wi
 *missed*. Results show on *Schedules & System*.
 
 ## The crypto paper bot
-Fake money (US$100,000 start each). Live Binance prices for BTC and ETH. Rules v4 (27 Nov). Every 15 minutes:
+Fake money (US$100,000 start each). Live Binance prices for BTC and ETH. Rules v5 (27 Nov). Every 15 minutes:
 1. **Plain code first.** The trend rule (1-hour EMA20/EMA50) and the coin flips act. They enter only when flat and exit
    only at their stop or target.
 2. **Trend + Qwen veto.** For each trade the trend rule has just opened, Qwen is asked five times: TAKE or SKIP? It
@@ -48,7 +48,8 @@ Fake money (US$100,000 start each). Live Binance prices for BTC and ETH. Rules v
    the trend rule, never more, and every trade it skipped has a known result in the trend rule's account.
 3. **Veto, spot fees.** The same verdicts on the kind of venue an Australian retail account can open: long only, no
    borrowing, 0.8% a side. It shows what the idea costs outside Binance futures.
-4. **Qwen** picks LONG, SHORT, WAIT or CLOSE for each coin. **Qwen + journal** does the same, plus it sees code-counted
+4. **Qwen** must pick LONG or SHORT for every coin it can open (with how sure it is); for a coin it already holds it
+   picks WAIT, CLOSE or the other side. **Qwen + journal** does the same, plus it sees code-counted
    results of its own closed trades (numbers only after 30).
 
 The same for every account:
@@ -89,7 +90,7 @@ follows the price, no new trades around US rate decisions and inflation figures 
 thinking mode, and other models. Each is a replay arm.
 
 History: on the first night (v1) FLAT closed every trade 5 minutes later and fees ate the account (Qwen -4.83%, coin
-flip -6.23%, hold BTC +0.39%, 26-27 Nov). v3 fixed that. v4 followed the code audit of 27 Nov. Plutus can answer
+flip -6.23%, hold BTC +0.39%, 26-27 Nov). v3 fixed that. v4 followed the code audit of 27 Nov. v5: on v4 both Qwens said WAIT 44 times out of 44, so now they must pick a side. Plutus can answer
 questions about the bot, quoting only the live numbers.
 
 ## Backups

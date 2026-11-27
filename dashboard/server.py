@@ -21,7 +21,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.27-crypto-v4"
+STUDIO_VERSION = "2026.11.27-crypto-v5"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 # Bots only see chat history from after the honesty fixes, so old false answers ("full access") are not repeated.

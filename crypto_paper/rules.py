@@ -1,5 +1,11 @@
 """The written-down rules. Changing any value means a new RULES_VERSION and a fresh record.
 
+v5 (27 Nov 2026, 13:00): on v4, both Qwen accounts said WAIT 44 times out of 44 in 2.5 hours (the prompt said "WAIT is a
+good answer most of the time"), so they produced no data. Now, for every coin with nothing open and no limit blocking it,
+Qwen must pick LONG or SHORT and say how sure it is. The cost limits below cap how often that can trade. Only the Qwen
+prompt and this label changed; every number below is the same as v4. (Not tried in the replay first: Markus asked for
+it live, and the replay needs his PC.)
+
 v4 (27 Nov 2026), after the code audit of the same day:
 - Trades fill at the price AFTER Qwen answers, and stops are checked while it thinks (v3 filled at the price from before).
 - New account "Trend + Qwen veto": the trend rule proposes each trade, Qwen may only TAKE or SKIP it, by 4 votes of 5,
@@ -21,7 +27,7 @@ v3 (27 Nov 2026), after the first night (v1, 26-27 Nov):
 - The coin flip and trend rule only open when flat and only exit at their stop, target or the daily stop.
 """
 
-RULES_VERSION = "v4 · 2026-11-27"
+RULES_VERSION = "v5 · 2026-11-27"
 START_BALANCE = 100_000.0           # fake US dollars
 SYMBOLS = ("BTCUSDT", "ETHUSDT")
 TICK_SECONDS = 2                    # price check (stops and targets)

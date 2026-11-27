@@ -153,7 +153,7 @@ class TestRunner(unittest.TestCase):
         wait = {"BTCUSDT": dict(go["BTCUSDT"], action="WAIT"), "ETHUSDT": go["ETHUSDT"]}
         answers = [None, None, go, go, wait, wait]                                # two Qwen calls per round
         seen, seen_pos = [], []
-        def fake_decide(snaps, pos, track_record=None):
+        def fake_decide(snaps, pos, track_record=None, **kw):
             seen.append(track_record)
             seen_pos.append(pos)
             a = answers.pop(0)
@@ -236,7 +236,7 @@ class TestControls(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp())
         self.calls = []
-        def dec(snaps, pos, track_record=None):
+        def dec(snaps, pos, track_record=None, **kw):
             self.calls.append(track_record is not None)
             return ({s: {"action": "LONG", "play": "TREND", "confidence": .7, "reason": "r"} for s in R.SYMBOLS}, {"seconds": 1})
         self.p = Paper(self.tmp, decide=dec, mkt=FakeMarket)

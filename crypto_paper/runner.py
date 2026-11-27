@@ -403,7 +403,11 @@ class Paper:
         if book.paused:
             return prices
         pos = book.open_view(prices, datetime.now(AEST))
-        got, info = self.decide(snaps, pos) if track is None else self.decide(snaps, pos, track_record=track)
+        now = now_iso()
+        can_open = {s: [side for side in ("LONG", "SHORT") if book.refusal(s, side, now) is None] for s in R.SYMBOLS}
+        must_pick = [s for s in R.SYMBOLS if s not in book.positions and s not in book.pending and can_open[s]]
+        kw = {"must_pick": must_pick, "can_open": can_open}
+        got, info = self.decide(snaps, pos, **kw) if track is None else self.decide(snaps, pos, track_record=track, **kw)
         fresh = self._fresh(prices)
         record[label] = {"open_positions": pos, "answer": got, "info": info}
         if got is None or fresh is None:
@@ -412,6 +416,10 @@ class Paper:
         prices, at = fresh, now_iso()
         m["decision_seconds"] = (m["decision_seconds"] + [info["seconds"]])[-200:]
         notes = []
+        for sym in must_pick:
+            if got[sym]["action"] not in ("LONG", "SHORT"):           # it was told to pick a side and didn't
+                m["no_pick"] = m.get("no_pick", 0) + 1
+                notes.append(f"{sym}: did not pick a side ({got[sym]['action']}), so nothing opened")
         for sym, d in got.items():
             notes += book.act(sym, d["action"], prices, atrs[sym], at, d["reason"], funding_ok, d.get("play", "NONE"), d.get("confidence"))
         m["last_decision"] = {"at": at, "missed": False, "seconds": info["seconds"], "decisions": got, "result": notes}

@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from crypto_paper import brain, events, market, scorecard  # noqa: E402
 from crypto_paper import rules as R  # noqa: E402
 from crypto_paper.book import Book  # noqa: E402
-from crypto_paper.runner import Paper  # noqa: E402
+from crypto_paper.runner import Paper, now_iso  # noqa: E402
 
 
 def px(btc_bid, btc_ask, eth_bid=3000.0, eth_ask=3000.5):
@@ -241,6 +241,49 @@ class FakeMarket:
         return cls.after
 
     trend_rule = staticmethod(market.trend_rule)
+
+
+class TestMustPick(unittest.TestCase):
+    """v5: Qwen has to pick a side for every coin it can open; limits still decide what actually opens."""
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+        FakeMarket.after = px(60100, 60110)
+        self.asked = []
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def run_round(self, answer, prep=None):
+        def decide(snaps, pos, track_record=None, **kw):
+            self.asked.append(kw)
+            return ({s: {"action": answer[s], "play": "TREND", "confidence": .3, "reason": "r"} for s in R.SYMBOLS}, {"seconds": 1.0})
+        veto = lambda cards: ({c["symbol"]: {"take": False, "votes_take": 0, "votes_skip": 5, "reason": "r"} for c in cards}, {"seconds": 1.0, "votes": 5})
+        p = Paper(self.tmp, decide=decide, mkt=FakeMarket, veto=veto, digest=lambda: None)
+        prices = px(60000, 60010)
+        p.tick(prices)
+        if prep:
+            prep(p, prices)
+        p.decision_round(prices)
+        return p
+
+    def test_flat_coins_are_must_pick_and_get_traded(self) -> None:
+        p = self.run_round({"BTCUSDT": "LONG", "ETHUSDT": "SHORT"})
+        self.assertEqual(self.asked[0]["must_pick"], list(R.SYMBOLS))
+        self.assertEqual(p.qwen.positions["BTCUSDT"]["side"], "LONG")
+        self.assertEqual(p.qwen.positions["ETHUSDT"]["side"], "SHORT")
+
+    def test_wait_when_told_to_pick_is_counted_not_hidden(self) -> None:
+        p = self.run_round({"BTCUSDT": "WAIT", "ETHUSDT": "LONG"})
+        self.assertNotIn("BTCUSDT", p.qwen.positions)
+        self.assertEqual(p.meta["no_pick"], 1)
+        self.assertIn("did not pick a side", " ".join(p.meta["last_decision"]["result"]))
+
+    def test_blocked_coin_is_not_forced(self) -> None:
+        def cool(p, prices):
+            p.qwen.last_exit["BTCUSDT"] = now_iso()                 # just exited BTC: cooldown blocks both sides
+        self.run_round({"BTCUSDT": "WAIT", "ETHUSDT": "LONG"}, prep=cool)
+        self.assertEqual(self.asked[0]["must_pick"], ["ETHUSDT"])
+        self.assertEqual(self.asked[0]["can_open"]["BTCUSDT"], [])
 
 
 class TestRunnerV4(unittest.TestCase):
@@ -546,21 +589,30 @@ class TestRealRequestPath(unittest.TestCase):
     """brain.py talking HTTP to a stand-in server: the request Ollama gets and what the bot makes of the reply."""
 
     def test_picker_request_and_answer(self) -> None:
-        good = json.dumps({"decisions": [{"symbol": s, "action": "WAIT", "play": "NONE", "confidence": 0.4, "reason": "r"}
+        good = json.dumps({"decisions": [{"symbol": s, "action": "SHORT", "play": "FADE", "confidence": 0.4, "reason": "r"}
                                          for s in R.SYMBOLS]})
-        o = FakeOllama([good])
+        held = json.dumps({"decisions": [{"symbol": s, "action": "WAIT", "play": "NONE", "confidence": 0.4, "reason": "r"}
+                                         for s in R.SYMBOLS]})
+        o = FakeOllama([good, held])
         try:
             got, info = brain.decide([{"symbol": s} for s in R.SYMBOLS], {}, o.url)
+            got2, _ = brain.decide([{"symbol": s} for s in R.SYMBOLS], {"BTCUSDT": {"side": "LONG"}}, o.url)
             self.assertEqual(brain.model_digest(o.url), "sha256:feedbeef")
         finally:
             o.close()
-        self.assertEqual(got["BTCUSDT"]["action"], "WAIT")
+        self.assertEqual(got["BTCUSDT"]["action"], "SHORT")
         self.assertNotIn("error", info)
         req = o.seen[0]
         self.assertEqual((req["model"], req["stream"], req["think"]), (R.MODEL, False, False))
         self.assertEqual(req["options"]["num_ctx"], R.NUM_CTX)
         self.assertEqual(req["keep_alive"], R.KEEP_ALIVE)
-        self.assertEqual(req["format"], brain.SCHEMA)
+        # v5: nothing open -> the answer format itself only allows LONG or SHORT, and the question says so
+        self.assertEqual(req["format"]["properties"]["decisions"]["items"]["properties"]["action"]["enum"], ["LONG", "SHORT"])
+        self.assertEqual(json.loads(req["messages"][1]["content"])["must_pick"], list(R.SYMBOLS))
+        # a trade open -> the full format (WAIT keeps it, CLOSE exits it)
+        self.assertEqual(o.seen[1]["format"], brain.SCHEMA)
+        self.assertEqual(json.loads(o.seen[1]["messages"][1]["content"])["must_pick"], ["ETHUSDT"])
+        self.assertEqual(got2["BTCUSDT"]["action"], "WAIT")
 
     def test_veto_votes_over_http_and_stops_early(self) -> None:
         take = json.dumps({"verdicts": [{"symbol": "BTCUSDT", "verdict": "TAKE", "reason": "with the trend"}]})
