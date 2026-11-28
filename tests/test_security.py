@@ -178,7 +178,10 @@ class TestHonestPrompts(unittest.TestCase):
         for phrase in ("FULL OPERATIONAL ACCESS", "FULL READ AND WRITE ACCESS", "Never say 'I cannot access your files'",
                        "FORBIDDEN STATEMENTS", "Qwen3:8B active at A$0"):
             self.assertNotIn(phrase, src)
-        self.assertIn("WHAT YOU CANNOT DO:", src)
+        # 28 Nov rewrite: shorter and positive, but the real limits are still stated, honestly
+        for phrase in ("What the studio does not let you do", "change, move or delete files yourself",
+                       "trade real money", "Never make up numbers"):
+            self.assertIn(phrase, src)
 
 
 if __name__ == "__main__":

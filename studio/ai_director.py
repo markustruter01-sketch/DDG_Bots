@@ -8,12 +8,14 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from crypto_paper import rules as _R   # one keep-alive and window for every Qwen caller (no reloads)
+
 from .models import MentionItem, Transcript
 from .vram_baton import VramBaton
 
 
 class OllamaClient:
-    """Zero-cost local Ollama HTTP client strictly bound to 127.0.0.1 with keep_alive=0."""
+    """Zero-cost local Ollama HTTP client strictly bound to 127.0.0.1."""
 
     def __init__(
         self,
@@ -21,7 +23,7 @@ class OllamaClient:
         text_model: str = "qwen3:8b",
         vision_model: str = "qwen3-vl:4b",
         timeout_s: int = 120,
-        num_ctx: int = 8192,
+        num_ctx: int = _R.NUM_CTX,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.text_model = text_model
@@ -46,8 +48,8 @@ class OllamaClient:
                 "stream": False,
                 "think": False,
                 "format": "json",
-                "keep_alive": 0,
-                "options": {"temperature": 0.2},
+                "keep_alive": _R.KEEP_ALIVE,
+                "options": {"temperature": 0.2, "num_ctx": self.num_ctx},
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -69,7 +71,8 @@ class OllamaClient:
     def warmup(self, model: str | None = None) -> bool:
         """Load the chat model into VRAM now (and keep it for 10 min) so the first reply is instant."""
         target_model = model or self.text_model
-        payload = json.dumps({"model": target_model, "prompt": "", "keep_alive": "10m", "stream": False}).encode("utf-8")
+        payload = json.dumps({"model": target_model, "prompt": "", "keep_alive": _R.KEEP_ALIVE, "stream": False,
+                              "options": {"num_ctx": self.num_ctx}}).encode("utf-8")
         req = urllib.request.Request(
             f"{self.base_url}/api/generate", data=payload, headers={"Content-Type": "application/json"}, method="POST"
         )
@@ -95,14 +98,14 @@ class OllamaClient:
         model: str | None = None,
         history: list[dict[str, str]] | None = None,
     ) -> str:
-        """Fast interactive chat with thinking disabled and 10m keep_alive so replies arrive in 1-3s."""
+        """Non-streamed chat with thinking off (routines and the video pipeline use this)."""
         target_model = model or self.text_model
         payload = json.dumps(
             {
                 "model": target_model,
                 "stream": False,
                 "think": False,
-                "keep_alive": "10m",
+                "keep_alive": _R.KEEP_ALIVE,
                 "options": {"temperature": 0.4, "num_predict": 500, "num_ctx": self.num_ctx},
                 "messages": self._messages(system_prompt, user_prompt, history),
             }
@@ -120,7 +123,7 @@ class OllamaClient:
     def chat_raw(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None,
                  model: str | None = None) -> dict[str, Any]:
         """One non-streamed chat call; returns the reply message (may carry tool_calls)."""
-        body: dict[str, Any] = {"model": model or self.text_model, "stream": False, "think": False, "keep_alive": "10m",
+        body: dict[str, Any] = {"model": model or self.text_model, "stream": False, "think": False, "keep_alive": _R.KEEP_ALIVE,
                                 "options": {"temperature": 0.2, "num_predict": 700, "num_ctx": self.num_ctx}, "messages": messages}
         if tools:
             body["tools"] = tools
@@ -144,7 +147,8 @@ class OllamaClient:
             {
                 "model": target_model,
                 "stream": True,
-                "keep_alive": "10m",
+                "think": False,
+                "keep_alive": _R.KEEP_ALIVE,
                 "options": {"temperature": 0.4, "num_predict": 500, "num_ctx": self.num_ctx},
                 "messages": self._messages(system_prompt, user_prompt, history),
             }

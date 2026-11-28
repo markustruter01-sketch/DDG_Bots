@@ -21,8 +21,9 @@ No cloud AI bills, no data leaving the PC.
 
 **Run it (Windows, Python 3.12)**
 1. `powershell -ExecutionPolicy Bypass -File scripts\setup_local_env.ps1` (one time: Ollama, models, Python packages).
-2. Double-click `Restart DDG Bot Studio.bat`, then open `http://127.0.0.1:8765`.
-3. Optional: `Install Always-On.bat` starts it at login and checks on it every 5 minutes.
+2. Double-click `Restart DDG Bot Studio.bat` (it opens `http://127.0.0.1:8765`).
+3. Optional: `Install Always-On.bat` starts it at login; the guardian (`studio/guardian.py`) checks it every 5 minutes
+   and restarts the dashboard, the crypto bot or the AI engine if one is down or frozen.
 
 **Private files (not in this repo)**
 `data/`, `logs/`, `.env` and `config/private_terms.json` (personal words the video blur must hide; see

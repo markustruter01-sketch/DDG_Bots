@@ -1,11 +1,24 @@
 # How the DDG Bot Studio works (for Markus)
 
-## Starting and stopping
-- It starts by itself when you log in, and a check every 5 minutes restarts it (and the crypto bot) if either stops.
-  Restarts are noted in `logs\watchdog.log`.
-- **Restart DDG Bot Studio.bat** stops and starts everything, then shows the version.
-- **Remove Always-On.bat** turns the automatic start off.
-- The switch top-right pauses the bots and routines.
+## Starting, stopping and fixing itself (28 Nov 2026)
+- It starts by itself when you log in. Every 5 minutes a check (the *guardian*) makes sure the dashboard, the crypto bot
+  and the AI engine (Ollama) are working, and restarts whichever isn't. It also notices when the AI engine is frozen
+  or can't find Qwen (Qwen lives on `F:\DDG_Video_Studio\models\ollama`) and restarts it properly.
+- **Restart DDG Bot Studio.bat** stops everything (AI engine included) and starts it all again.
+- An open dashboard page reloads itself after a restart. While the studio is down it shows a banner.
+- **Restart AI** (top-right of the chat, or in **More**) restarts just the AI engine.
+- What happened is written down: `logs\watchdog.log` (checks and restarts), `logs\server.log` (dashboard),
+  `logs\ollama.log` (AI engine), `logs\crypto.log` (crypto bot).
+- **Remove Always-On.bat** turns the automatic start off. The switch top-right pauses the bots and routines.
+
+## Chatting
+- Replies stream in as they're written, with proper formatting (lists, tables, code). **Stop** ends a reply early.
+- Bots can look things up themselves when it helps: your folders (read only), the studio's status and the crypto bot.
+  You'll see a line like "Reading the crypto paper bot" when they do.
+- **Think harder** makes the bot think first (slower, more careful); you can open its thinking.
+- They know today's date and time, and remember the last 16 messages of the chat.
+- Bots still can't move, change or delete files themselves, send anything, browse the web or trade real money: they
+  propose, you approve.
 
 ## Pages
 - **Core** — the orb and the chat side by side. Pick who to talk to under the orb. *Waiting for you* lists everything

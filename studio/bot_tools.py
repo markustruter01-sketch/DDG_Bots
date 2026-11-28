@@ -8,24 +8,11 @@ in Waiting for you, and nothing moves until Markus approves it.
 from __future__ import annotations
 
 import json
-import re
 from typing import Any, Dict, List
 
 from studio import pc_worker
 
 MAX_ROWS = 40
-MAX_ROUNDS = 4
-
-# Messages that are about files get the tools; everything else chats normally (faster).
-FILE_WORDS = re.compile(
-    r"\b(file|files|folder|folders|directory|drive|drives|download|downloads|desktop|documents|disk|space|"
-    r"storage|duplicate|duplicates|clean|cleanup|tidy|organi[sz]e|archive|move|delete|declutter|big|largest)\b"
-    r"|[a-z]:\\", re.I)
-
-
-def wants_tools(message: str) -> bool:
-    return bool(FILE_WORDS.search(message or ""))
-
 
 def _fn(name: str, desc: str, props: Dict[str, Any], required: List[str]) -> Dict[str, Any]:
     return {"type": "function", "function": {"name": name, "description": desc,
@@ -41,22 +28,23 @@ TOOLS = [
          "older_than_days": {"type": "number"}, "min_size_mb": {"type": "number"}}, ["path"]),
     _fn("pc_duplicates", "Find files with identical content under a folder. Read only.",
         {"path": PATH, "min_size_mb": {"type": "number"}}, ["path"]),
-    _fn("pc_propose_plan", "Propose moving files or folders. Use dest 'QUARANTINE' instead of deleting. "
-        "Nothing moves until Markus approves it in the dashboard; every plan can be undone.",
+    _fn("pc_propose_plan", "Propose moving files or folders. Never propose deleting: use dest 'QUARANTINE' instead. "
+        "Nothing moves until Markus approves it under 'Waiting for you' on the Core page (tell him that); every plan "
+        "can be undone. Look at the folder first so the plan only names files a tool showed you.",
         {"title": {"type": "string"}, "reason": {"type": "string"},
          "moves": {"type": "array", "items": {"type": "object", "properties": {
              "src": {"type": "string"}, "dest": {"type": "string", "description": "New full path, or QUARANTINE"}},
              "required": ["src", "dest"]}}}, ["title", "moves"]),
 ]
 
-TOOLS_PROMPT = (
-    "You have tools to look at folders on Markus's PC (read only) and to propose a move plan. "
-    "Use them when Markus asks about his files: look first, then answer with what you actually found. "
-    "Only state file names, sizes and counts that a tool returned. "
-    "You cannot move or delete anything yourself: to tidy up, call pc_propose_plan, then tell Markus the plan "
-    "is waiting for his approval in 'Waiting for you' on the Core page and can be undone. "
-    "Never propose deleting: use QUARANTINE. If a tool says a place is blocked or outside the access setting, say so plainly."
-)
+# Read-only status tools; the server answers these (it owns the studio and crypto state).
+STATUS_TOOLS = [
+    _fn("studio_status", "The studio's live status: what is waiting on Markus, videos in each stage, the social queue, "
+        "yesterday's routines, whether the local AI is online, and what isn't tracked yet. Read only.", {}, []),
+    _fn("crypto_status", "The crypto paper-trading bot (fake money): every account's value and trades, open positions, "
+        "the latest decisions, live prices and the pass bar. Read only.", {}, []),
+]
+CHAT_TOOLS = TOOLS + STATUS_TOOLS   # offered on every chat message since 28 Nov; the model decides when to use them
 
 
 def _gb(n: Any) -> str:
@@ -106,4 +94,5 @@ def describe(name: str, args: Dict[str, Any]) -> str:
     """One line for the thought panel."""
     p = args.get("path", "")
     return {"pc_look": f"Looking in {p}", "pc_sizes": f"Measuring {p}", "pc_search": f"Searching {p} for {args.get('name') or '*'}",
-            "pc_duplicates": f"Checking {p} for duplicates", "pc_propose_plan": f"Writing a plan: {args.get('title', '')}"}.get(name, name)
+            "pc_duplicates": f"Checking {p} for duplicates", "pc_propose_plan": f"Writing a plan: {args.get('title', '')}",
+            "studio_status": "Checking the studio's status", "crypto_status": "Reading the crypto paper bot"}.get(name, name)

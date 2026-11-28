@@ -4,7 +4,8 @@ Owner: Markus (DDG). Claude writes the code. Read `docs/PLAN.md` and `docs/HOW-I
 
 ## Never break these
 1. **Honest bots.** A bot never claims an ability, a result or a status it hasn't got or checked. Prompts list only real
-   abilities (`CAPABILITIES_PROMPT` in `dashboard/server.py`). Routines write only from `_studio_facts()`.
+   abilities (`CAPABILITIES_PROMPT` in `dashboard/server.py`; the whole bot prompt is built in `_bot_system_prompt`).
+   Routines write only from `_studio_facts()`. Chat goes through `studio/chat_engine.py` only.
 2. **Nothing is lost.** There is no delete. "Delete" = move to `F:\DDG_Quarantine` (`studio/governance.py`), and every
    PC plan has an undo journal (`studio/pc_worker.py`). Never add `rmtree`, `unlink` or `os.remove` on user files.
 3. **Plain code decides, the AI suggests.** Bots may look (read-only) and *propose* plans (`studio/bot_tools.py`).
@@ -19,9 +20,14 @@ Owner: Markus (DDG). Claude writes the code. Read `docs/PLAN.md` and `docs/HOW-I
 7. **Night Glass** (DDG_Control `docs/brand/night-glass.md`): white does the work, colour only as a signal, amber only for
    problems, never red, charts never animate, render user/bot text escaped (`esc`, `jsArg`, `textContent`).
 
+8. **One guardian.** `studio/guardian.py` is the only thing that starts, checks and restarts the studio, the crypto bot
+   and the AI engine (Ollama, always with Qwen's folder on F:). The watchdog, the launcher, "Restart DDG Bot
+   Studio.bat" and the dashboard's Restart AI all call it. Tests never touch the real engine: plug in a fake model
+   (`make_handler(..., chat_stream=...)`, `guardian.System`) and keep `DDG_NO_HEAL` set in CI.
+
 ## How to change things
 - Python 3.12 (`.venv`), stdlib only for new code. Run `python -m unittest tests.test_security tests.test_pc_worker
-  tests.test_bot_tools tests.test_routines tests.test_crypto_paper tests.test_crypto_v4 tests.test_crypto_replay` — all
-  must pass. Add tests for every safety rule you touch.
+  tests.test_bot_tools tests.test_routines tests.test_crypto_paper tests.test_crypto_v4 tests.test_crypto_replay
+  tests.test_guardian tests.test_chat_engine` — all must pass. Add tests for every safety rule you touch.
 - Bump `STUDIO_VERSION` in `dashboard/server.py` and the line in `Restart DDG Bot Studio.bat`.
 - Never commit `logs/`, `data/` or anything with keys.

@@ -6,6 +6,7 @@ import hmac
 import io
 import json
 import mimetypes
+import os
 import secrets
 import shutil
 import subprocess
@@ -21,7 +22,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 AEST = timezone(timedelta(hours=10))
-STUDIO_VERSION = "2026.11.27-crypto-v5"
+STUDIO_VERSION = "2026.11.28-overhaul"
 STARTED_AT = datetime.now(AEST).isoformat(timespec="seconds")
 TOKEN_PLACEHOLDER = b"__DDG_SESSION_TOKEN__"
 # Bots only see chat history from after the honesty fixes, so old false answers ("full access") are not repeated.
@@ -35,6 +36,8 @@ from studio import governance
 from crypto_paper import controls as crypto_controls
 from studio import pc_worker
 from studio import bot_tools
+from studio import chat_engine
+from studio import guardian
 from studio import routines
 from studio import image_gen
 from studio.ai_director import OllamaClient
@@ -142,15 +145,20 @@ DEFAULT_BOT_ROSTER: list[dict[str, Any]] = [
 
 
 CAPABILITIES_PROMPT = (
-    "WHAT YOU CAN DO: talk with Markus and draft text (posts, emails, plans, scripts, checklists). "
-    "When Markus asks for an image, the studio makes it for you. "
-    "When Markus asks about his files, the studio gives you read-only tools to look at folders and to propose a "
-    "move plan; he approves or rejects it in 'Waiting for you', and every plan can be undone. "
-    "WHAT YOU CANNOT DO: move, change or delete files yourself; run programs; browse the web; send email or post anything. "
-    "If Markus asks for those, say plainly that you can't, and say what he can do instead. "
-    "Do not offer to run scripts or automations; you may write a script as text for Markus to review. "
-    "Never say or imply you did something you did not do, and never describe file contents or folders a tool has not shown you. "
-    "You never place trades. Never invent numbers, facts, dates or status; if you don't know, say so. "
+    "What you can do: talk with Markus, think things through with him, and write anything he needs (plans, emails, "
+    "posts, scripts, checklists, code). With your tools you can look at the folders on his PC (read only), find what "
+    "takes space or is duplicated, propose a tidy-up plan for him to approve (nothing moves until he does, and every "
+    "plan can be undone), and read the live status of the studio and of the crypto paper-trading bot. Use a tool "
+    "whenever the answer depends on live facts. When Markus asks for an image, the studio makes it for you. "
+    "What the studio does not let you do: change, move or delete files yourself, send messages or posts, browse the "
+    "web, or trade real money. If he asks for one of those, say so in one line and offer the closest thing you can do. "
+    "Never make up numbers, file names, results or status: use a tool, or say you don't know."
+)
+STYLE_PROMPT = (
+    "How to answer: like a sharp, friendly colleague. Lead with the answer, then the useful detail. Use Markdown when "
+    "it helps (short paragraphs, bullet or numbered lists, **bold** for key points, tables for comparisons, code "
+    "blocks for code). Match the length to the question: a quick question gets a short reply. Plain Australian English, "
+    "no emojis unless Markus uses them, no sign-offs."
 )
 
 
@@ -199,8 +207,10 @@ def _bot_offline_reply(bot: dict[str, Any], message: str) -> str:
     )
 
 
-def make_handler(studio_root: Path, footage_root: Path):
+def make_handler(studio_root: Path, footage_root: Path, chat_stream: Any = None):
+    """chat_stream: how to reach the model (tests pass a fake; None = the local Ollama)."""
     settings = load_settings(studio_root)
+    _chat_stream = chat_stream or chat_engine.stream_chat
     rules = load_rules(studio_root)
     subdirs = settings["footage_subdirs"]
     session_token = secrets.token_urlsafe(32)
@@ -572,6 +582,69 @@ def make_handler(studio_root: Path, footage_root: Path):
                                 "DDG Finance results", "X account replies and followers", "Doomsday Daycare build status"],
         }
 
+    def _slim_crypto() -> dict[str, Any]:
+        st = _crypto_state()
+        slim = {k: st.get(k) for k in ("running", "started", "rules_version", "pass_bar", "limits", "qwen", "qwen_journal",
+                                        "trend_veto", "veto_spot", "trend_rule", "coin_flip", "coin_flips", "rank_vs_flips",
+                                        "hold_btc", "decisions", "missed", "avg_decision_seconds", "veto_split",
+                                        "last_decision", "prices", "note")}
+        slim["recent_trades"] = (st.get("all_recent_trades") or st.get("recent_trades") or [])[:8]
+        return slim
+
+    def _bot_system_prompt(bot: dict[str, Any], extra_rules: str, recall_txt: str = "", group_note: str = "") -> str:
+        """The one place a bot's instructions are written (28 Nov rewrite: short, with today's date, no 'can't' list)."""
+        now = datetime.now(AEST)
+        parts = [f"You are {bot['name']}, {bot['title']} at Digital Dynamics Group (DDG), Markus's company. "
+                 f"Your area: {bot['zone']}. {bot['summary']}",
+                 f"It is {now.strftime('%A')} {now.day} {now.strftime('%B %Y')}, {now.strftime('%I:%M %p').lstrip('0')} "
+                 "in Brisbane (AEST, UTC+10). You run on Markus's own PC with a local AI model.",
+                 CAPABILITIES_PROMPT, STYLE_PROMPT]
+        if group_note:
+            parts.append(group_note)
+        if bot["name"] == "Plutus":
+            parts.append("You look after the crypto PAPER-trading test (fake money: Qwen decides, code trades). "
+                         f"Latest: {_crypto_line() or 'not started'}. Call crypto_status for the details before answering.")
+        if recall_txt:
+            parts.append(recall_txt[:1500])
+        if extra_rules:
+            parts.append("Markus's standing preferences. Follow them in spirit; the [ME]/[REPLIT] step labels and copy-block "
+                         "rules only apply when you write a prompt for a coding tool.\n" + extra_rules)
+        return "\n\n".join(parts)
+
+    heal_state = {"last": 0.0, "running": False}
+    heal_lock = threading.Lock()
+
+    def _heal_ai(reason: str) -> bool:
+        """Restart a frozen or misconfigured AI engine in the background (at most once every 3 minutes).
+        Only for the real engine: never when a test plugs in its own model, or when DDG_NO_HEAL is set."""
+        if chat_stream is not None or os.environ.get("DDG_NO_HEAL"):
+            return False
+        with heal_lock:
+            if heal_state["running"] or time.time() - heal_state["last"] < 180:
+                return False
+            heal_state.update(running=True, last=time.time())
+
+        def _go() -> None:
+            try:
+                guardian.restart_ollama(f"chat could not reach it ({reason})")
+            finally:
+                heal_state["running"] = False
+        threading.Thread(target=_go, daemon=True).start()
+        return True
+
+    def _ai_status() -> dict[str, Any]:
+        model = settings["ollama"]["text_model"]
+        if heal_state["running"]:
+            return {"state": "restarting", "model": model}
+        code, data = guardian.http_json(settings["ollama"]["base_url"].rstrip("/") + "/api/tags", None, 3)
+        if code != 200 or not isinstance(data, dict):
+            return {"state": "not_answering", "model": model}
+        if not guardian.has_model([m.get("name", "") for m in data.get("models", [])], model):
+            return {"state": "model_missing", "model": model, "folder": guardian.ollama_conf()["models_dir"]}
+        code, ps = guardian.http_json(settings["ollama"]["base_url"].rstrip("/") + "/api/ps", None, 3)
+        loaded = isinstance(ps, dict) and any(guardian.has_model([m.get("name", "")], model) for m in ps.get("models", []))
+        return {"state": "ready" if loaded else "asleep", "model": model}
+
     def _ai_write(bot_name: str, task: str, facts: dict[str, Any], max_words: int = 160) -> str | None:
         ai = OllamaClient(base_url=settings["ollama"]["base_url"], text_model=settings["ollama"]["text_model"],
                           vision_model=settings["ollama"]["vision_model"], timeout_s=90)
@@ -813,6 +886,10 @@ def make_handler(studio_root: Path, footage_root: Path):
                 )
                 return
 
+            if path == "/api/ai/status":
+                self._send_json(200, _ai_status())
+                return
+
             if path == "/api/system":
                 busy, gpu_status = is_gpu_busy_for_user(
                     paused_processes=settings["gpu"]["pause_on_processes"],
@@ -927,9 +1004,21 @@ def make_handler(studio_root: Path, footage_root: Path):
 
             self._send_json(404, {"error": "Not found"})
 
-        def _chat_with_tools(self, ollama: Any, bot: dict[str, Any], sys_prompt: str, msg: str,
-                             prior_hist: list[dict[str, str]], stream_mode: bool, record: Any) -> None:
-            """Chat where the bot may look at folders and propose a plan (Phase 2.5). Nothing moves without Markus."""
+        def _run_chat_tool(self, name: str, args: dict[str, Any], who: str) -> str:
+            if name == "studio_status":
+                return json.dumps(_studio_facts(), ensure_ascii=False, default=str)[:6000]
+            if name == "crypto_status":
+                return json.dumps(_slim_crypto(), ensure_ascii=False, default=str)[:7000]
+            return bot_tools.run(name, args, who)
+
+        def _answer(self, who: str, sys_prompt: str, msg: str, history: list[dict[str, str]], stream_mode: bool,
+                    think: bool, record: Any) -> None:
+            """Every single-bot reply goes through here: streamed, tools always offered, the engine healed if down."""
+            model = settings["ollama"]["text_model"]
+            source = f"ollama:{model}" + ("+think" if think else "")
+            said: list[str] = []
+            reply = ""
+
             def emit(ev: dict[str, Any]) -> None:
                 if stream_mode:
                     self.wfile.write(f"data: {json.dumps(ev)}\n\n".encode("utf-8"))
@@ -939,38 +1028,48 @@ def make_handler(studio_root: Path, footage_root: Path):
                     self.send_response(200)
                     self.send_header("Content-Type", "text/event-stream; charset=utf-8")
                     self.send_header("Cache-Control", "no-cache")
+                    self.send_header("X-Accel-Buffering", "no")
                     self.end_headers()
-                msgs = ollama._messages(sys_prompt + "\n" + bot_tools.TOOLS_PROMPT, msg, prior_hist)
-                reply = ""
+                gen = chat_engine.answer(settings["ollama"]["base_url"], model, sys_prompt, history, msg,
+                                         tools=bot_tools.CHAT_TOOLS, run_tool=lambda n, a: self._run_chat_tool(n, a, who),
+                                         describe=bot_tools.describe, think=think, stream_fn=_chat_stream)
                 try:
-                    for rnd in range(bot_tools.MAX_ROUNDS + 1):
-                        m = ollama.chat_raw(msgs, tools=bot_tools.TOOLS if rnd < bot_tools.MAX_ROUNDS else None)
-                        calls = m.get("tool_calls") or []
-                        if not calls:
-                            reply = str(m.get("content") or "").strip()
-                            break
-                        msgs.append({"role": "assistant", "content": m.get("content") or "", "tool_calls": calls})
-                        for c in calls:
-                            fn = c.get("function", {}) or {}
-                            name, args = str(fn.get("name", "")), fn.get("arguments") or {}
-                            if isinstance(args, str):
-                                try:
-                                    args = json.loads(args)
-                                except ValueError:
-                                    args = {}
-                            emit({"thought": bot_tools.describe(name, args) + "\n", "source": "tools"})
-                            msgs.append({"role": "tool", "content": bot_tools.run(name, args, bot["name"]), "tool_name": name})
-                except Exception as exc:
-                    reply = reply or f"I couldn't finish looking ({type(exc).__name__}). Please ask again."
-                reply = reply or "I looked, but couldn't put an answer together. Please ask again."
-                source = f"ollama:{ollama.text_model}+tools"
-                record(reply, source)
+                    for ev in gen:
+                        if "final" in ev:
+                            reply = ev["final"]
+                        elif "token" in ev:
+                            said.append(ev["token"])
+                            emit({"token": ev["token"], "source": source})
+                        elif "thought" in ev:
+                            emit({"thought": ev["thought"], "source": source})
+                        elif "tool" in ev:
+                            if not source.endswith("+tools"):
+                                source += "+tools"
+                            emit({"tool": ev["tool"], "source": "tools"})
+                finally:
+                    gen.close()          # closing the stream also tells Ollama to stop
+            except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                partial = "".join(said).strip()           # Markus pressed Stop (or closed the page): keep what was said
+                record((partial + "\n\n" if partial else "") + "*(stopped)*", source)
+                return
+            except chat_engine.EngineDown as exc:
+                healing = _heal_ai(str(exc))
+                note = ("The AI engine isn't answering right now" + (", so I've asked the studio to restart it" if healing else
+                        "; the studio is already restarting it") + ". Try again in about a minute.")
+                partial = "".join(said).strip()
+                reply, source = (partial + "\n\n" if partial else "") + note, "engine_down"
+                try:
+                    emit({"token": ("\n\n" if partial else "") + note, "source": source})
+                except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+                    return
+            reply = reply or "".join(said).strip() or "I didn't manage an answer that time. Please ask again."
+            record(reply, source)
+            try:
                 if stream_mode:
-                    emit({"token": reply, "source": source})
                     self.wfile.write(b"data: [DONE]\n\n")
                     self.wfile.flush()
                 else:
-                    self._send_json(200, {"bot": bot["name"], "reply": reply, "reply_source": source})
+                    self._send_json(200, {"bot": who, "reply": reply, "reply_source": source})
             except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
                 return
 
@@ -1263,7 +1362,6 @@ def make_handler(studio_root: Path, footage_root: Path):
                     return
 
                 custom_names = _load_bot_names()
-                offline_only = bool(body.get("offline", False))
                 ts = now_aest_iso()
                 hist = grp.setdefault("history", [])
                 hist.append({"sender": "Markus", "text": msg, "timestamp_aest": ts})
@@ -1277,21 +1375,11 @@ def make_handler(studio_root: Path, footage_root: Path):
                         mentioned.append(mname)
                 responders = mentioned if mentioned else list(grp["members"])
 
-                ollama = None
-                if not offline_only:
-                    cand = OllamaClient(
-                        base_url=settings["ollama"]["base_url"],
-                        text_model=settings["ollama"]["text_model"],
-                        vision_model=settings["ollama"]["vision_model"],
-                        timeout_s=45,
-                    )
-                    if cand.is_available():
-                        ollama = cand
-
-                stream_group = bool(body.get("stream", False)) and ollama is not None
+                stream_group = bool(body.get("stream", False))
                 prior_group = list(hist[:-1])[-14:]  # everything before the message we just appended
                 replies = []
                 sse_open = False
+                model = settings["ollama"]["text_model"]
 
                 def _sse(obj: dict[str, Any]) -> None:
                     self.wfile.write(f"data: {json.dumps(obj)}\n\n".encode("utf-8"))
@@ -1302,7 +1390,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                         self.send_response(200)
                         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
                         self.send_header("Cache-Control", "no-cache")
-                        self.send_header("Connection", "keep-alive")
+                        self.send_header("X-Accel-Buffering", "no")
                         self.end_headers()
                         sse_open = True
 
@@ -1311,61 +1399,52 @@ def make_handler(studio_root: Path, footage_root: Path):
                         if not bdef:
                             continue
                         dname = custom_names.get(mname, mname)
-                        reply_text = ""
-                        reply_source = "offline_charter"
                         if sse_open:
                             _sse({"bot": dname, "bot_id": mname, "start": True})
-                        if ollama is not None:
-                            extra_rules = _build_rules_prompt(mname)
-                            recall_txt = memory.format_recall(f"group:{gid}", msg)
-                            sys_prompt = (
-                                f"You are {dname} ({bdef['title']}) in a DDG team group chat with Markus and {', '.join(grp['members'])}. "
-                                f"Zone: {bdef['zone']}. Duty: {bdef['summary']}\n"
-                                "You are an employee of Digital Dynamics Group (DDG), running on Markus's own PC with a local AI model. "
-                                f"{CAPABILITIES_PROMPT}"
-                                "Keep your reply concise (2-4 sentences) and stay in your lane. Do not speak for other bots. "
-                                f"{extra_rules}"
-                                + (f"\n\n{recall_txt}" if recall_txt else "")
-                            )
-                            hist_msgs = []
-                            for h in prior_group + replies:
-                                if h.get("source") == "offline_charter" or h.get("timestamp_aest", "") < HONEST_SINCE:
-                                    continue
-                                if h.get("sender") == "Markus":
-                                    hist_msgs.append({"role": "user", "content": h["text"]})
-                                elif h.get("bot_id") == mname:
-                                    hist_msgs.append({"role": "assistant", "content": h["text"]})
-                                else:
-                                    hist_msgs.append({"role": "user", "content": f"[{h.get('sender')}]: {h['text']}"})
+                        sys_prompt = _bot_system_prompt(
+                            dict(bdef, name=dname), _build_rules_prompt(mname), memory.format_recall(f"group:{gid}", msg),
+                            group_note=(f"This is a team group chat with Markus and {', '.join(grp['members'])}. "
+                                        "Reply in 2-4 sentences, stay in your own area and don't speak for the others."))
+                        hist_msgs = []
+                        for h in prior_group + replies:
+                            if h.get("source") in ("offline_charter", "engine_down") or h.get("timestamp_aest", "") < HONEST_SINCE:
+                                continue
+                            if h.get("sender") == "Markus":
+                                hist_msgs.append({"role": "user", "content": h["text"]})
+                            elif h.get("bot_id") == mname:
+                                hist_msgs.append({"role": "assistant", "content": h["text"]})
+                            else:
+                                hist_msgs.append({"role": "user", "content": f"[{h.get('sender')}]: {h['text']}"})
+                        chunks: list[str] = []
+                        reply_source = f"ollama:{model}"
+                        down = False
+                        try:
+                            gen = chat_engine.answer(settings["ollama"]["base_url"], model, sys_prompt, hist_msgs, msg,
+                                                     stream_fn=_chat_stream)
                             try:
-                                if sse_open:
-                                    chunks = []
-                                    for piece in ollama.chat_text_stream(sys_prompt, msg, history=hist_msgs):
-                                        if isinstance(piece, dict):
-                                            if "thought" in piece:
-                                                _sse({"bot": dname, "bot_id": mname, "thought": piece["thought"]})
-                                            elif "token" in piece:
-                                                chunks.append(piece["token"])
-                                                _sse({"bot": dname, "bot_id": mname, "token": piece["token"]})
-                                        else:
-                                            chunks.append(str(piece))
-                                            _sse({"bot": dname, "bot_id": mname, "token": str(piece)})
-                                    reply_text = "".join(chunks).strip()
-                                else:
-                                    reply_text = ollama.chat_text(sys_prompt, msg, history=hist_msgs)
-                                reply_source = f"ollama:{ollama.text_model}"
-                            except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
-                                return
-                            except Exception:
-                                reply_text = ""
-                        if not reply_text:
-                            reply_text = _bot_offline_reply(bdef, msg)
+                                for ev in gen:
+                                    if "token" in ev:
+                                        chunks.append(ev["token"])
+                                        if sse_open:
+                                            _sse({"bot": dname, "bot_id": mname, "token": ev["token"]})
+                                    elif "thought" in ev and sse_open:
+                                        _sse({"bot": dname, "bot_id": mname, "thought": ev["thought"]})
+                            finally:
+                                gen.close()
+                            reply_text = "".join(chunks).strip() or "(no answer)"
+                        except chat_engine.EngineDown as exc:
+                            _heal_ai(str(exc))
+                            down, reply_source = True, "engine_down"
+                            reply_text = ("The AI engine isn't answering right now; the studio is restarting it. "
+                                          "Try again in about a minute.")
                             if sse_open:
                                 _sse({"bot": dname, "bot_id": mname, "token": reply_text})
                         entry = {"sender": dname, "bot_id": mname, "text": reply_text, "timestamp_aest": now_aest_iso(), "source": reply_source}
                         replies.append(entry)
                         if sse_open:
                             _sse({"bot": dname, "bot_id": mname, "end": True, "source": reply_source})
+                        if down:
+                            break                     # no point asking the next bot
                 except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
                     return
 
@@ -1374,7 +1453,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                 _save_groups(groups)
                 memory.add(f"group:{gid}", "Markus", msg, ts)
                 for r in replies:
-                    if r["source"] != "offline_charter":
+                    if r["source"] not in ("offline_charter", "engine_down"):
                         memory.add(f"group:{gid}", r["sender"], r["text"], r["timestamp_aest"])
                 if sse_open:
                     try:
@@ -1398,22 +1477,7 @@ def make_handler(studio_root: Path, footage_root: Path):
                     self._send_json(400, {"error": "Empty message"})
                     return
 
-                offline_only = bool(body.get("offline", False))
                 stream_mode = bool(body.get("stream", False))
-                reply_text = ""
-                reply_source = "offline_charter"
-
-                ollama = None
-                if not offline_only:
-                    cand = OllamaClient(
-                        base_url=settings["ollama"]["base_url"],
-                        text_model=settings["ollama"]["text_model"],
-                        vision_model=settings["ollama"]["vision_model"],
-                        timeout_s=45,
-                    )
-                    if cand.is_available():
-                        ollama = cand
-
                 extra_rules = _build_rules_prompt(bot["name"])
                 recall_txt = memory.format_recall(f"bot:{bot['name']}", msg)
 
@@ -1503,86 +1567,11 @@ def make_handler(studio_root: Path, footage_root: Path):
 
                 prior_hist = [
                     {"role": "user" if h.get("sender") == "Markus" else "assistant", "content": h.get("text", "")}
-                    for h in _load_chats().get(bot["name"], [])[-4:]
-                    if h.get("source") != "offline_charter" and h.get("timestamp_aest", "") >= HONEST_SINCE
+                    for h in _load_chats().get(bot["name"], [])
+                    if h.get("source") not in ("offline_charter", "engine_down") and h.get("timestamp_aest", "") >= HONEST_SINCE
                 ]
-                crypto_facts = ""
-                if bot["name"] == "Plutus":
-                    st = _crypto_state()
-                    slim = {k: st.get(k) for k in ("running", "started", "rules_version", "pass_bar", "limits", "qwen", "qwen_journal", "trend_veto", "veto_spot",
-                                                    "trend_rule", "coin_flip", "coin_flips", "rank_vs_flips", "hold_btc", "decisions", "missed",
-                                                    "avg_decision_seconds", "veto_split", "last_decision", "scorecard")}
-                    slim["recent_trades"] = (st.get("recent_trades") or [])[:6]
-                    crypto_facts = ("You report on the crypto PAPER bot (fake money; Qwen decides, code trades). "
-                                    "Its live state is below; quote only these numbers.\nCRYPTO STATE: " + json.dumps(slim)[:9000] + "\n")
-                sys_prompt = (
-                    f"You are {bot['name']}, {bot['title']} at Digital Dynamics Group (DDG). "
-                    f"Zone: {bot['zone']}. Duty: {bot['summary']}\n"
-                    "You run on Markus's own PC with a local AI model.\n"
-                    f"{CAPABILITIES_PROMPT}\n{crypto_facts}"
-                    f"Keep replies concise, professional, and helpful in plain Australian English. {extra_rules}"
-                )
-
-                if ollama is not None and bot_tools.wants_tools(msg):
-                    self._chat_with_tools(ollama, bot, sys_prompt, msg, prior_hist, stream_mode, _record_bot_turn)
-                    return
-
-                if stream_mode and ollama is not None:
-                    headers_sent = False
-                    try:
-                        self.send_response(200)
-                        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-                        self.send_header("Cache-Control", "no-cache")
-                        self.send_header("Connection", "keep-alive")
-                        self.end_headers()
-                        headers_sent = True
-                        full_chunks = []
-                        for piece in ollama.chat_text_stream(sys_prompt, msg, history=prior_hist):
-                            if isinstance(piece, dict):
-                                if "thought" in piece:
-                                    event_data = json.dumps({"thought": piece["thought"], "source": f"ollama:{ollama.text_model}"})
-                                    self.wfile.write(f"data: {event_data}\n\n".encode("utf-8"))
-                                    self.wfile.flush()
-                                elif "token" in piece:
-                                    full_chunks.append(piece["token"])
-                                    event_data = json.dumps({"token": piece["token"], "source": f"ollama:{ollama.text_model}"})
-                                    self.wfile.write(f"data: {event_data}\n\n".encode("utf-8"))
-                                    self.wfile.flush()
-                            else:
-                                full_chunks.append(str(piece))
-                                event_data = json.dumps({"token": str(piece), "source": f"ollama:{ollama.text_model}"})
-                                self.wfile.write(f"data: {event_data}\n\n".encode("utf-8"))
-                                self.wfile.flush()
-                        reply_text = "".join(full_chunks).strip()
-                        reply_source = f"ollama:{ollama.text_model}"
-                        self.wfile.write(b"data: [DONE]\n\n")
-                        self.wfile.flush()
-                        _record_bot_turn(reply_text, reply_source)
-                        return
-                    except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
-                        return
-                    except Exception as exc:
-                        if headers_sent:
-                            try:
-                                err = json.dumps({"token": f"\n[Local AI error: {type(exc).__name__}]", "source": "error"})
-                                self.wfile.write(f"data: {err}\n\ndata: [DONE]\n\n".encode("utf-8"))
-                                self.wfile.flush()
-                            except Exception:
-                                pass
-                            return
-
-                if ollama is not None and not reply_text:
-                    try:
-                        reply_text = ollama.chat_text(sys_prompt, msg, history=prior_hist)
-                        reply_source = f"ollama:{ollama.text_model}"
-                    except Exception:
-                        reply_text = ""
-
-                if not reply_text:
-                    reply_text = _bot_offline_reply(bot, msg)
-
-                _record_bot_turn(reply_text, reply_source)
-                self._send_json(200, {"bot": bot["name"], "reply": reply_text, "reply_source": reply_source})
+                self._answer(bot["name"], _bot_system_prompt(bot, extra_rules, recall_txt), msg, prior_hist,
+                             stream_mode, bool(body.get("think")), _record_bot_turn)
                 return
 
             if path.startswith("/api/bots/") and path.endswith("/clear"):
@@ -1666,26 +1655,11 @@ def make_handler(studio_root: Path, footage_root: Path):
                 self._send_json(200, {"scanned": True, "processed": results})
                 return
 
-            if path == "/api/ollama/start":
-                # Check if already running
-                cand = OllamaClient(
-                    base_url=settings["ollama"]["base_url"],
-                    text_model=settings["ollama"]["text_model"],
-                    vision_model=settings["ollama"]["vision_model"],
-                    timeout_s=3,
-                )
-                if cand.is_available():
-                    self._send_json(200, {"running": True, "message": "Ollama is already running and reachable."})
-                    return
-                try:
-                    # Spawn ollama serve in background
-                    subprocess.Popen(["ollama", "serve"], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    # Brief wait to see if it starts up
-                    time.sleep(2)
-                    alive = cand.is_available()
-                    self._send_json(200, {"running": alive, "message": "Ollama serve initiated." if alive else "Ollama process launched, initializing..."})
-                except Exception as exc:
-                    self._send_json(500, {"error": f"Failed to start Ollama: {exc}"})
+            if path in ("/api/ollama/start", "/api/ollama/restart"):
+                # 28 Nov: a frozen engine still holds its port, so "start if not answering" never fixed it. Restart it
+                # properly (stop, start with Qwen's folder, check) in the background; the page polls /api/ai/status.
+                started = _heal_ai("Markus pressed Restart AI") if path.endswith("restart") or _ai_status()["state"] != "ready" else False
+                self._send_json(202 if started else 200, {"restarting": started, "status": _ai_status()})
                 return
 
             if path.startswith("/api/jobs/") and path.endswith("/approve"):
@@ -1836,6 +1810,12 @@ def _warmup_model_async(settings: dict[str, Any]) -> None:
 
 
 def main() -> None:
+    for stream in (sys.stdout, sys.stderr):      # logs/server.log (via the guardian): write each line at once
+        try:
+            stream.reconfigure(line_buffering=True)
+        except Exception:
+            pass
+    print(f"[DDG] {datetime.now(AEST).isoformat(timespec='seconds')} starting Bot Studio {STUDIO_VERSION}")
     settings = load_settings(STUDIO_ROOT)
     host = settings["dashboard"]["host"]
     port = int(settings["dashboard"]["port"])

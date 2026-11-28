@@ -626,6 +626,11 @@
     align-items: center;
     justify-content: space-between;
   }
+  /* 28 Nov 2026: one line per bot, so the whole team fits */
+  .roster-scroll .list-item { padding: 8px 10px; margin-bottom: 6px; }
+  .roster-scroll .list-item-btn { min-width: 0; flex: 1; }
+  .roster-scroll .list-item-btn > span:last-child { min-width: 0; flex: 1; }
+  .roster-scroll .list-item .mono { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .roster-scroll {
     max-height: calc(100vh - 210px);
     overflow-y: auto;
@@ -641,6 +646,65 @@
     background: var(--ng-glass-plain);
     white-space: nowrap;
   }
+  /* 28 Nov 2026: the chat reads like a modern chatbot - one centred reading column, real formatting, a tidy header */
+  .chat-header-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .chat-menu-wrap { position: relative; }
+  .chat-menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 230px; padding: 6px;
+    display: flex; flex-direction: column; border-radius: 14px; background: rgba(16, 18, 24, 0.94);
+    backdrop-filter: var(--ng-blur-bg); -webkit-backdrop-filter: var(--ng-blur-bg);
+    border: 1px solid var(--ng-edge); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  }
+  .chat-menu.hidden { display: none; }
+  .chat-menu button {
+    text-align: left; background: none; border: 0; color: var(--ng-text); font: inherit; font-size: 13px;
+    padding: 8px 10px; border-radius: 9px; cursor: pointer;
+  }
+  .chat-menu button:hover, .chat-menu button:focus-visible { background: var(--ng-btn-fill); outline: none; }
+  .chat-menu-sep { height: 1px; background: var(--ng-hairline); margin: 4px 6px; }
+  .chat-log { padding: 22px max(20px, calc((100% - 860px) / 2)); }
+  .chat-bubble-row { max-width: 100%; }
+  .chat-bubble-row.user { max-width: 78%; }
+  .chat-bubble-row.bot { width: 100%; }
+  .chat-bubble { white-space: normal; }
+  .chat-bubble-row.bot .chat-bubble { padding: 14px 18px; font-size: 14.5px; line-height: 1.6; }
+  .chat-bubble p { margin: 0 0 10px; }
+  .chat-bubble > :last-child { margin-bottom: 0; }
+  .chat-bubble .md-list { margin: 0 0 10px; padding-left: 22px; }
+  .chat-bubble .md-list li { margin: 3px 0; }
+  .chat-bubble .md-list li.d1 { margin-left: 18px; }
+  .chat-bubble .md-list li.d2 { margin-left: 36px; }
+  .chat-bubble .md-h { font-weight: 600; margin: 14px 0 6px; letter-spacing: -0.2px; }
+  .chat-bubble .md-h:first-child { margin-top: 0; }
+  .chat-bubble .md-h1 { font-size: 18px; }
+  .chat-bubble .md-h2 { font-size: 16.5px; }
+  .chat-bubble .md-h3, .chat-bubble .md-h4 { font-size: 15px; }
+  .chat-bubble code { font-family: var(--ng-mono); font-size: 12.5px; background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 5px; }
+  .chat-bubble pre.md-code {
+    margin: 8px 0 10px; padding: 12px 14px; border-radius: 10px; background: rgba(7, 8, 11, 0.7);
+    border: 1px solid var(--ng-hairline); overflow-x: auto; white-space: pre;
+  }
+  .chat-bubble pre.md-code code { background: none; padding: 0; line-height: 1.5; }
+  .chat-bubble blockquote { margin: 0 0 10px; padding: 2px 0 2px 12px; border-left: 2px solid var(--ng-edge); color: var(--ng-text-2); }
+  .chat-bubble .md-hr { border: 0; border-top: 1px solid var(--ng-hairline); margin: 12px 0; }
+  .chat-bubble .md-table { overflow-x: auto; margin: 6px 0 10px; }
+  .chat-bubble table { border-collapse: collapse; font-size: 13px; }
+  .chat-bubble th, .chat-bubble td { border-bottom: 1px solid var(--ng-hairline); padding: 6px 14px 6px 0; text-align: left; vertical-align: top; }
+  .chat-bubble th { color: var(--ng-text-2); font-weight: 500; }
+  .chat-bubble a { color: var(--ng-ice); }
+  .chat-bubble .chat-image-preview img { max-width: 100%; max-height: 380px; border-radius: 10px; border: 1px solid var(--ng-edge); display: block; margin: 6px 0; }
+  .md-caret { display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--ng-text-2); border-radius: 1px; animation: mdBlink 1s steps(2) infinite; }
+  @keyframes mdBlink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .md-caret { animation: none; } }
+  .chat-tools { display: flex; flex-direction: column; gap: 4px; margin: 0 0 8px; }
+  .chat-tool { font-family: var(--ng-mono); font-size: 11.5px; color: var(--ng-text-2); display: flex; align-items: center; gap: 8px; }
+  .think-chip { white-space: nowrap; align-self: center; }
+  .think-chip.on { border-color: var(--ng-ice); color: var(--ng-ice); }
+  .restart-banner {
+    margin: 12px 0 0; display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px;
+    background: var(--ng-glass-plain); border: 1px solid var(--ng-amber-edge); color: var(--ng-text); font-size: 13.5px;
+  }
+  .restart-banner.hidden { display: none; }
   .rules-drawer {
     padding: 16px 20px;
     border-bottom: 1px solid var(--ng-hairline);
@@ -737,6 +801,13 @@
     .core-chat .chat-shell { height: 78vh; }
   }
   @media (max-width: 760px) { .core-cards { grid-template-columns: 1fr; } .core-greeting { font-size: 24px; } }
+  @media (max-width: 760px) {                     /* phone: tabs scroll sideways instead of pushing the page wide */
+    .nav-bar { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+    .nav-bar::-webkit-scrollbar { display: none; }
+    .nav-tab { white-space: nowrap; }
+    .grid-2 { grid-template-columns: minmax(0, 1fr); }
+    .roster-scroll .list-item .mono { max-width: 60vw; }
+  }
 
 
   /* Crypto view: one screen (27 Nov 2026) */
@@ -789,7 +860,7 @@
   @media (max-width: 760px) {
     body.dusk { padding: 14px 14px calc(24px + env(safe-area-inset-bottom)); }
     .topbar { flex-direction: column; align-items: flex-start; }
-    .grid-2, .grid-equal { grid-template-columns: 1fr; }
+    .grid-2, .grid-equal { grid-template-columns: minmax(0, 1fr); }
     .btn, .nav-tab { min-height: 44px; }
   }
 </style>
@@ -825,6 +896,10 @@
       </div>
     </div>
   </header>
+  <div id="restartBanner" class="restart-banner hidden" role="status">
+    <span class="dot late" aria-hidden="true"></span>
+    The studio isn't answering. It restarts itself within 5 minutes, and this page reloads by itself when it's back.
+  </div>
 
   <div id="offlineBanner" class="banner-offline hidden">
     <strong>Local server offline.</strong> Run <code>scripts\run_studio.bat</code> and open <code>http://127.0.0.1:8765</code> to connect live bot chat, triggers, and approvals.
@@ -918,23 +993,29 @@
           <div id="selectedBotAvatar" class="bot-avatar" aria-hidden="true">HM</div>
           <div style="min-width:0">
             <div class="mono" id="selectedBotZone">Select a bot</div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <h2 id="selectedBotName" style="margin:2px 0 0;font-size:19px">Heimdall</h2>
-              <button id="renameBotBtn" class="chip" style="padding:3px 9px;font-size:11px" onclick="renameActiveBot()">Rename</button>
-              <button class="chip" style="padding:3px 9px;font-size:11px;color:var(--ng-text-3)" onclick="clearCurrentChat()" title="Start fresh conversation with this bot">Clear Chat</button>
-            </div>
+            <h2 id="selectedBotName" style="margin:2px 0 0;font-size:19px">Heimdall</h2>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <button id="rulesToggleBtn" class="chip" onclick="toggleRulesDrawer()">Rules &amp; Skills</button>
-          <button id="ttsToggleBtn" class="chip" onclick="toggleAutoTts()">Voice Readback: Off</button>
-          <button id="handsFreeBtn" class="chip" onclick="toggleHandsFree()">Hands-Free: Off</button>
-          <button id="alertsBtn" class="chip" onclick="enableAlerts()">Alerts: Off</button>
-          <div class="llm-pill" title="Local Ollama LLM status">
+        <div class="chat-header-tools">
+          <div class="llm-pill" title="The local AI engine (Ollama) and model">
             <span id="llmDot" class="dot nodata" aria-hidden="true"></span>
-            <span id="llmBadge" class="mono">Checking LLM...</span>
+            <span id="llmBadge" class="mono">Checking the AI...</span>
           </div>
-          <button id="startLlmBtn" class="chip hidden" style="color:var(--ng-mint);border-color:var(--ng-mint)" onclick="startLocalLlm()" title="Launch local Ollama server with 1 click">▶ Start Local LLM</button>
+          <button id="startLlmBtn" class="chip hidden" onclick="startLocalLlm()" title="Stop the AI engine and start it again properly">Restart AI</button>
+          <div class="chat-menu-wrap">
+            <button id="chatMenuBtn" class="chip" aria-haspopup="true" aria-expanded="false" aria-controls="chatMenu" onclick="toggleChatMenu()">More</button>
+            <div id="chatMenu" class="chat-menu hidden" role="menu">
+              <button id="renameBotBtn" role="menuitem" onclick="closeChatMenu();renameActiveBot()">Rename this bot</button>
+              <button role="menuitem" onclick="closeChatMenu();clearCurrentChat()">Clear this chat</button>
+              <button id="rulesToggleBtn" role="menuitem" onclick="closeChatMenu();toggleRulesDrawer()">Rules &amp; Skills</button>
+              <div class="chat-menu-sep"></div>
+              <button id="ttsToggleBtn" role="menuitemcheckbox" onclick="toggleAutoTts()">Voice Readback: Off</button>
+              <button id="handsFreeBtn" role="menuitemcheckbox" onclick="toggleHandsFree()">Hands-Free: Off</button>
+              <button id="alertsBtn" role="menuitem" onclick="enableAlerts()">Alerts: Off</button>
+              <div class="chat-menu-sep"></div>
+              <button role="menuitem" onclick="closeChatMenu();startLocalLlm(true)">Restart the AI engine</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1030,6 +1111,7 @@
         <div class="chat-composer-box">
           <button id="micBtn" class="btn secondary sm" title="Voice input (speak to bot)" onclick="toggleVoiceInput()" style="min-width:42px;padding:0 10px">Mic</button>
           <textarea id="chatInput" rows="1" placeholder="Message Heimdall... (Enter to send, Shift+Enter for new line)" onkeydown="handleChatKey(event)" oninput="autoGrowInput(this)"></textarea>
+          <button id="thinkBtn" class="chip think-chip" aria-pressed="false" onclick="toggleThink(this)" title="Slower, more careful answers: the bot thinks first, and you can read its thinking">Think harder</button>
           <button id="chatSendBtn" class="btn sm" onclick="sendChat()">Send</button>
         </div>
         <div id="chatStatus" class="mono" style="margin-top:6px;min-height:14px" role="status"></div>
@@ -1209,8 +1291,31 @@
     if ((o.method || 'GET').toUpperCase() !== 'GET') {
       o.headers = Object.assign({}, o.headers || {}, { 'X-DDG-Token': DDG_TOKEN });
     }
-    return nativeFetch(url, o);
+    return nativeFetch(url, o).then(resp => {
+      if (resp.status === 403 && window.studioWatch) window.studioWatch.check();   // our session key is out of date
+      return resp;
+    });
   };
+  /* Studio watch (28 Nov 2026): each studio start makes a new session key, so a page left open across a restart
+     could no longer do anything. Now the page checks every 10 s and reloads itself when the studio has restarted. */
+  window.studioWatch = (() => {
+    let startedAt = null, down = false;
+    async function check() {
+      const banner = document.getElementById('restartBanner');
+      try {
+        const r = await nativeFetch('/api/health', { cache: 'no-store' });
+        const d = await r.json();
+        if (startedAt && d.started_at_aest && d.started_at_aest !== startedAt) { location.reload(); return; }
+        startedAt = d.started_at_aest || startedAt;
+        if (down) { down = false; if (banner) banner.classList.add('hidden'); }
+      } catch (_) {
+        down = true;
+        if (banner) banner.classList.remove('hidden');
+      }
+    }
+    if (location.protocol !== 'file:') { check(); setInterval(check, 10000); }
+    return { check };
+  })();
 })();
 let currentView = 'core';
 let activeBotName = 'Heimdall';
@@ -1286,6 +1391,13 @@ function placeChat(view) {
   if (!shell) return;
   const host = view === 'core' ? document.getElementById('coreChatHost') : document.getElementById('view-bots');
   if (host && shell.parentElement !== host) host.appendChild(shell);
+  requestAnimationFrame(() => {                     // show the latest message when the chat moves or appears
+    const log = document.getElementById('chatLog');
+    if (!log) return;
+    log.style.scrollBehavior = 'auto';
+    log.scrollTop = log.scrollHeight;
+    log.style.scrollBehavior = '';
+  });
 }
 
 function switchView(view, btn) {
@@ -2145,43 +2257,66 @@ function handleChatKey(e) {
   }
 }
 
+/* AI status (28 Nov 2026): what the engine is actually doing, and a Restart that really restarts it. */
 async function refreshLlmBadge() {
-  try {
-    const { data } = await apiFetch('/api/system');
-    const dot = document.getElementById('llmDot');
-    const badge = document.getElementById('llmBadge');
-    const startBtn = document.getElementById('startLlmBtn');
-    if (!dot || !badge) return;
-    if (data.ollama_online) {
-      dot.className = 'dot confirmed';
-      badge.textContent = 'qwen3:8b · Online (A$0)';
-      if (startBtn) startBtn.classList.add('hidden');
-    } else {
-      dot.className = 'dot late';
-      badge.textContent = 'Local LLM Offline';
-      if (startBtn) startBtn.classList.remove('hidden');
-    }
-  } catch (_) {}
+  const dot = document.getElementById('llmDot');
+  const badge = document.getElementById('llmBadge');
+  const btn = document.getElementById('startLlmBtn');
+  if (!dot || !badge) return null;
+  let d = null;
+  try { d = (await apiFetch('/api/ai/status')).data; } catch (_) {}
+  const model = (d && d.model) || 'Qwen';
+  const states = {
+    ready: ['confirmed', `${model} ready`, false],
+    asleep: ['confirmed', `${model} ready · wakes on your first message`, false],
+    restarting: ['working', 'Restarting the AI engine…', false],
+    not_answering: ['late', 'AI engine not answering', true],
+    model_missing: ['late', `${model} not found (is the F: drive connected?)`, true],
+  };
+  const [cls, text, showBtn] = states[(d && d.state) || ''] || ['nodata', 'Studio not answering', false];
+  dot.className = 'dot ' + cls;
+  badge.textContent = text;
+  if (btn && !btn.disabled) btn.classList.toggle('hidden', !showBtn);
+  return d;
 }
 
-async function startLocalLlm() {
+async function startLocalLlm(force) {
   const btn = document.getElementById('startLlmBtn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Starting Ollama...';
-  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Restarting…'; btn.classList.remove('hidden'); }
   try {
-    const { ok, data } = await apiFetch('/api/ollama/start', { method: 'POST', body: '{}' });
-    if (btn) {
-      btn.textContent = ok ? 'Launched!' : 'Error';
-      setTimeout(() => {
-        btn.disabled = false;
-        refreshLlmBadge();
-      }, 3000);
-    }
-  } catch (_) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Retry Start'; }
+    await apiFetch(force ? '/api/ollama/restart' : '/api/ollama/start', { method: 'POST', body: '{}' });
+  } catch (_) {}
+  for (let i = 0; i < 25; i++) {               // up to ~75 s: stop, start, find Qwen
+    await new Promise(r => setTimeout(r, 3000));
+    const d = await refreshLlmBadge();
+    if (d && (d.state === 'ready' || d.state === 'asleep')) break;
   }
+  if (btn) { btn.disabled = false; btn.textContent = 'Restart AI'; }
+  refreshLlmBadge();
+}
+
+function toggleChatMenu() {
+  const m = document.getElementById('chatMenu');
+  const open = m.classList.contains('hidden');
+  m.classList.toggle('hidden', !open);
+  document.getElementById('chatMenuBtn').setAttribute('aria-expanded', String(open));
+}
+function closeChatMenu() {
+  document.getElementById('chatMenu').classList.add('hidden');
+  document.getElementById('chatMenuBtn').setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', e => {
+  const w = e.target.closest && e.target.closest('.chat-menu-wrap');
+  if (!w) { const m = document.getElementById('chatMenu'); if (m && !m.classList.contains('hidden')) closeChatMenu(); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.getElementById('chatMenu'); if (m && !m.classList.contains('hidden')) closeChatMenu(); } });
+
+let thinkHarder = false;
+function toggleThink(btn) {
+  thinkHarder = !thinkHarder;
+  btn.setAttribute('aria-pressed', String(thinkHarder));
+  btn.classList.toggle('on', thinkHarder);
+  btn.textContent = thinkHarder ? 'Think harder: on' : 'Think harder';
 }
 
 async function refreshDiffusionStatus() {
@@ -2376,25 +2511,88 @@ async function createGroupChat() {
   }
 }
 
-function renderChatMessage(rawText) {
-  /* Escape everything first. Images are allowed only from the studio's own /media/ folder,
-     with no inline script; anything else in ![..](..) stays as plain text. */
-  if (!rawText) return '';
-  let s = esc(rawText);
+/* Chat formatting (28 Nov 2026): proper Markdown - paragraphs, lists, headings, tables, code - so replies read like a
+   real chatbot's. Everything is escaped first; links open only http(s); images only from the studio's /media/ folder. */
+function mdInline(escaped) {
+  const codes = [];
+  let s = escaped.replace(/`([^`]+)`/g, (m, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
   s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (match, alt, url) => {
     if (!/^\/media\/[A-Za-z0-9_\-.\/%]+$/.test(url) || url.includes('..')) return match;
-    return `<div class="chat-image-preview" style="margin-top:10px;margin-bottom:6px">
-      <a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${alt}" style="max-width:100%;max-height:380px;border-radius:10px;border:1px solid rgba(61,220,151,0.3);box-shadow:0 8px 24px rgba(0,0,0,0.6);display:block"></a>
-      <div class="row" style="margin-top:6px;gap:8px">
-        <a href="${url}" target="_blank" rel="noopener" class="chip" style="font-size:11px">Open full-size image</a>
-        <span class="mono" style="font-size:11px;color:var(--ng-mint)">${alt || 'Rendered image'}</span>
-      </div>
-    </div>`;
+    return `<a class="chat-image-preview" href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${alt}"></a>`;
   });
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;color:var(--ng-mint)">$1</code>');
-  s = s.replace(/\n/g, '<br>');
-  return s;
+  s = s.replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+  s = s.replace(/(^|[\s(])_([^_\s][^_]*?)_(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>');
+  return s.replace(/\u0000(\d+)\u0000/g, (m, n) => `<code>${codes[+n]}</code>`);
+}
+
+function renderChatMessage(rawText) {
+  if (!rawText) return '';
+  const lines = String(rawText).replace(/\r/g, '').split('\n');
+  let html = '', para = [], i = 0;
+  const flush = () => { if (para.length) { html += '<p>' + para.map(l => mdInline(esc(l))).join('<br>') + '</p>'; para = []; } };
+  const cells = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => mdInline(esc(c.trim())));
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*```/.test(line)) {                                   // code block (may still be open while streaming)
+      flush();
+      const buf = [];
+      i++;
+      while (i < lines.length && !/^\s*```/.test(lines[i])) buf.push(lines[i++]);
+      i++;
+      html += `<pre class="md-code"><code>${esc(buf.join('\n'))}</code></pre>`;
+      continue;
+    }
+    if (!line.trim()) { flush(); i++; continue; }
+    const h = line.match(/^\s*(#{1,4})\s+(.*)$/);
+    if (h) { flush(); html += `<div class="md-h md-h${h[1].length}">${mdInline(esc(h[2]))}</div>`; i++; continue; }
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) { flush(); html += '<hr class="md-hr">'; i++; continue; }
+    if (/^\s*>/.test(line)) {
+      flush();
+      const buf = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, ''));
+      html += `<blockquote>${buf.map(l => mdInline(esc(l))).join('<br>')}</blockquote>`;
+      continue;
+    }
+    if (/^\s*\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+      flush();
+      const head = cells(line);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) rows.push(cells(lines[i++]));
+      html += `<div class="md-table"><table><thead><tr>${head.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>` +
+              rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>';
+      continue;
+    }
+    const li = line.match(/^(\s*)([-*•+]|\d+[.)])\s+(.*)$/);
+    if (li) {
+      flush();
+      const ordered = /\d/.test(li[2]);
+      const items = [];
+      while (i < lines.length) {
+        const m = lines[i].match(/^(\s*)([-*•+]|\d+[.)])\s+(.*)$/);
+        if (m) { items.push({ depth: Math.min(2, Math.floor(m[1].replace(/\t/g, '    ').length / 2)), text: m[3] }); i++; continue; }
+        if (lines[i].trim() && /^\s{2,}\S/.test(lines[i]) && items.length) { items[items.length - 1].text += '\n' + lines[i].trim(); i++; continue; }
+        break;
+      }
+      const tag = ordered ? 'ol' : 'ul';
+      html += `<${tag} class="md-list">` + items.map(it =>
+        `<li class="d${it.depth}">${it.text.split('\n').map(t => mdInline(esc(t))).join('<br>')}</li>`).join('') + `</${tag}>`;
+      continue;
+    }
+    para.push(line);
+    i++;
+  }
+  flush();
+  return html;
+}
+
+/* "28 Nov, 11:58 am" instead of a raw timestamp. */
+function fmtWhen(iso) {
+  const d = new Date(iso || '');
+  if (isNaN(d)) return iso || '';
+  return d.toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
 /* A safe argument for an inline onclick="fn(...)": JSON-quoted, then HTML-escaped. */
@@ -2434,7 +2632,7 @@ function renderSelectedGroup(grp) {
       return `
         <div class="chat-bubble-row ${isUser ? 'user' : 'bot'}">
           <div class="chat-bubble">${renderChatMessage(m.text)}</div>
-          <div class="chat-meta">${esc(m.sender)} · ${esc(m.timestamp_aest || '')}${m.source ? ' · ' + esc(m.source) : ''}${!isUser ? `<button class="speak-btn" onclick="speakText(this.parentElement.previousElementSibling.textContent)">Speak</button>` : ''}</div>
+          <div class="chat-meta">${esc(m.sender)} · ${esc(fmtWhen(m.timestamp_aest))}${m.source ? ' · ' + esc(m.source) : ''}${!isUser ? `<button class="speak-btn" onclick="speakText(this.parentElement.previousElementSibling.textContent)">Speak</button>` : ''}</div>
         </div>
       `;
     }).join('');
@@ -2479,7 +2677,7 @@ function renderSelectedBot(bot) {
       return `
         <div class="chat-bubble-row ${isUser ? 'user' : 'bot'}">
           <div class="chat-bubble">${renderChatMessage(m.text)}</div>
-          <div class="chat-meta">${esc(m.sender)} · ${esc(m.timestamp_aest || '')}${m.source ? ' · ' + esc(m.source) : ''}${!isUser ? `<button class="speak-btn" onclick="speakText(this.parentElement.previousElementSibling.textContent)">Speak</button>` : ''}</div>
+          <div class="chat-meta">${esc(m.sender)} · ${esc(fmtWhen(m.timestamp_aest))}${m.source ? ' · ' + esc(m.source) : ''}${!isUser ? `<button class="speak-btn" onclick="speakText(this.parentElement.previousElementSibling.textContent)">Speak</button>` : ''}</div>
         </div>
       `;
     }).join('');
@@ -2501,144 +2699,143 @@ function sendQuickPrompt(text) {
   sendChat();
 }
 
+/* Chat (28 Nov 2026 rewrite): streamed and drawn smoothly, a Stop button, no 45-second cut-off (it only gives up after
+   2½ minutes with no new text), tool steps shown as they happen, and "Think harder" when asked. */
+let chatAbort = null;
+const CHAT_IDLE_MS = 150000;
+
+function setSendMode(stop) {
+  const btn = document.getElementById('chatSendBtn');
+  btn.disabled = false;
+  btn.textContent = stop ? 'Stop' : 'Send';
+  btn.classList.toggle('secondary', !!stop);
+  btn.onclick = stop ? () => { if (chatAbort) chatAbort.abort('stopped'); } : sendChat;
+}
+
 async function sendChat() {
   stopVoiceInput();
   stopSpeaking();
   const input = document.getElementById('chatInput');
   const msg = input.value.trim();
-  if (!msg) return;
-  if (chatBusy) return;
+  if (!msg || chatBusy) return;
   chatBusy = true;
-  const btn = document.getElementById('chatSendBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="ng-bars" aria-hidden="true"><span></span><span></span><span></span></span>Thinking';
+  setSendMode(true);
   input.value = '';
   autoGrowInput(input);
 
   const logEl = document.getElementById('chatLog');
   if (logEl.querySelector('.chat-empty')) logEl.innerHTML = '';
   const isGroup = !!activeGroupId;
-  const targetLabel = isGroup ? 'Team' : activeBotName;
+  const targetLabel = isGroup ? 'The team' : activeBotName;
   logEl.insertAdjacentHTML('beforeend', `
     <div class="chat-bubble-row user">
-      <div class="chat-bubble">${esc(msg)}</div>
+      <div class="chat-bubble">${esc(msg).replace(/\n/g, '<br>')}</div>
       <div class="chat-meta">Markus · Just now</div>
     </div>
     <div id="typingBubble" class="chat-bubble-row bot">
-      <div class="chat-bubble"><span class="ng-loader"><span class="ng-revolve" aria-hidden="true"></span>${esc(targetLabel)} is thinking...</span></div>
-    </div>
-  `);
+      <div class="chat-bubble chat-typing"><span class="ng-loader"><span class="ng-revolve" aria-hidden="true"></span>${esc(targetLabel)} is ${thinkHarder ? 'thinking it through' : 'replying'}…</span></div>
+    </div>`);
   logEl.scrollTop = logEl.scrollHeight;
+  const status = document.getElementById('chatStatus');
+  status.textContent = '';
 
   const endpoint = isGroup
     ? '/api/groups/' + encodeURIComponent(activeGroupId) + '/chat'
     : '/api/bots/' + encodeURIComponent(activeBotName) + '/chat';
+  chatAbort = new AbortController();
+  const ctrl = chatAbort;
+  let idleTimer = null;
+  const bumpIdle = () => { clearTimeout(idleTimer); idleTimer = setTimeout(() => ctrl.abort('timeout'), CHAT_IDLE_MS); };
+  bumpIdle();
 
-  let safetyTimeout = setTimeout(() => {
-    if (chatBusy) {
-      console.warn('sendChat safety watchdog triggered after 45s');
-      finish();
-    }
-  }, 45000);
-
-  const finish = () => {
-    if (safetyTimeout) { clearTimeout(safetyTimeout); safetyTimeout = null; }
-    chatBusy = false;
-    btn.disabled = false;
-    btn.textContent = 'Send';
+  const bubbles = {};
+  let source = 'ollama';
+  const spokenQueue = [];
+  const nearBottom = () => logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 140;
+  let frame = 0;
+  const paint = () => {
+    frame = 0;
+    const stick = nearBottom();
+    Object.values(bubbles).forEach(b => {
+      if (!b.dirty) return;
+      b.dirty = false;
+      b.bubble.innerHTML = renderChatMessage(b.text) + (b.live ? '<span class="md-caret" aria-hidden="true"></span>' : '');
+    });
+    if (stick) logEl.scrollTop = logEl.scrollHeight;
+  };
+  const schedule = b => { b.dirty = true; if (!frame) frame = requestAnimationFrame(paint); };
+  const ensureBubble = (botId, label) => {
+    const key = botId || '_single';
+    if (bubbles[key]) return bubbles[key];
     const tb = document.getElementById('typingBubble');
     if (tb) tb.remove();
+    const rowId = 'botMsg_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+    logEl.insertAdjacentHTML('beforeend', `
+      <div id="${rowId}" class="chat-bubble-row bot">
+        <div class="cot-block hidden" id="${rowId}_cot">
+          <div class="cot-header" onclick="toggleCot('${rowId}_cot')"><span>Thinking</span><span class="mono" style="font-size:10px">Show / hide</span></div>
+          <div class="cot-content"></div>
+        </div>
+        <div class="chat-tools hidden" id="${rowId}_tools"></div>
+        <div class="chat-bubble"></div>
+        <div class="chat-meta">${esc(label || activeBotName)} · Replying…</div>
+      </div>`);
+    bubbles[key] = {
+      bubble: document.querySelector(`#${rowId} .chat-bubble`),
+      cotBlock: document.getElementById(`${rowId}_cot`),
+      cotContent: document.querySelector(`#${rowId}_cot .cot-content`),
+      tools: document.getElementById(`${rowId}_tools`),
+      meta: document.querySelector(`#${rowId} .chat-meta`),
+      text: '', thought: '', label: label || activeBotName, live: true, dirty: false, done: false
+    };
+    return bubbles[key];
+  };
+  const finishBubble = (b, src, note) => {
+    if (b.done) return;
+    b.done = true;
+    b.live = false;
+    if (note) b.text += (b.text ? '\n\n' : '') + note;
+    schedule(b);
+    b.meta.innerHTML = `${esc(b.label)} · Just now · ${esc(src || source)}${actionButtonsHtml()}`;
+    if (autoTtsEnabled && b.text && !note) spokenQueue.push(isGroup ? `${b.label} says: ${b.text}` : b.text);
+  };
+  const handle = ev => {
+    if (ev.source) source = ev.source;
+    if (ev.start) { ensureBubble(ev.bot_id, ev.bot); return; }
+    const b = ensureBubble(ev.bot_id, ev.bot);
+    if (ev.tool !== undefined) {
+      b.tools.classList.remove('hidden');
+      b.tools.insertAdjacentHTML('beforeend', `<div class="chat-tool"><span class="dot working" aria-hidden="true"></span>${esc(ev.tool)}</div>`);
+    }
+    if (ev.progress !== undefined) {
+      b.bubble.innerHTML = `<div class="ng-loader"><span class="ng-revolve" aria-hidden="true"></span>${esc(ev.thought || 'Making the image…')} ${esc(String(ev.progress))}%</div>`;
+      return;
+    }
+    if (ev.thought !== undefined) {
+      b.thought += ev.thought;
+      b.cotContent.textContent = b.thought;
+      b.cotBlock.classList.remove('hidden');
+    }
+    if (ev.token !== undefined) { b.text += ev.token; schedule(b); }
+    if (ev.end) finishBubble(b, ev.source);
   };
 
   try {
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, stream: true })
+      body: JSON.stringify({ message: msg, stream: true, think: thinkHarder }),
+      signal: ctrl.signal
     });
     const ctype = resp.headers.get('content-type') || '';
-
     if (ctype.includes('text/event-stream')) {
-      // Live token stream (single bot or group: one bubble per bot)
-      const bubbles = {};  // bot_id -> {bubble, meta, text}
-      let source = 'ollama';
-      const spokenQueue = [];
       const reader = resp.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
-      const ensureBubble = (botId, label) => {
-        const key = botId || '_single';
-        if (bubbles[key]) return bubbles[key];
-        const tb = document.getElementById('typingBubble');
-        if (tb) tb.remove();
-        const rowId = 'botMsg_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
-        logEl.insertAdjacentHTML('beforeend', `
-          <div id="${rowId}" class="chat-bubble-row bot">
-            <div class="cot-block hidden" id="${rowId}_cot">
-              <div class="cot-header" onclick="toggleCot('${rowId}_cot')">
-                <span>💭 Thought Process (Live Chain-of-Thought)</span>
-                <span class="mono" style="font-size:10px">[Collapse/Expand]</span>
-              </div>
-              <div class="cot-content"></div>
-            </div>
-            <div class="chat-bubble"></div>
-            <div class="chat-meta">${esc(label || activeBotName)} · Typing...</div>
-          </div>`);
-        bubbles[key] = {
-          bubble: document.querySelector(`#${rowId} .chat-bubble`),
-          cotBlock: document.getElementById(`${rowId}_cot`),
-          cotContent: document.querySelector(`#${rowId}_cot .cot-content`),
-          meta: document.querySelector(`#${rowId} .chat-meta`),
-          text: '',
-          thought: '',
-          label: label || activeBotName
-        };
-        return bubbles[key];
-      };
-      const handle = (ev) => {
-        if (ev.start) { ensureBubble(ev.bot_id, ev.bot); return; }
-        if (ev.thought !== undefined) {
-          const b = ensureBubble(ev.bot_id, ev.bot);
-          b.thought += ev.thought;
-          b.cotContent.textContent = b.thought;
-          b.cotBlock.classList.remove('hidden');
-          logEl.scrollTop = logEl.scrollHeight;
-        }
-        if (ev.progress !== undefined) {
-          const b = ensureBubble(ev.bot_id, ev.bot);
-          b.bubble.innerHTML = `
-            <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;min-width:280px">
-              <div style="font-weight:600;display:flex;align-items:center;gap:8px;font-size:13.5px">
-                <span class="ng-revolve" aria-hidden="true" style="border-top-color:var(--ng-mint)"></span>
-                <span>${esc(ev.thought || 'Generating Local Artwork...')}</span>
-              </div>
-              <div style="width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
-                <div style="width:${ev.progress}%;height:100%;background:linear-gradient(90deg, #6cc7f0, #3ddc97);transition:width 0.3s ease"></div>
-              </div>
-              <div class="row" style="justify-content:space-between">
-                <span class="mono" style="font-size:11px;color:var(--ng-mint)">Rendering Stage: ${ev.progress}%</span>
-                <span class="mono" style="font-size:11px;color:var(--ng-text-3)">100% Free · A$0</span>
-              </div>
-            </div>`;
-          logEl.scrollTop = logEl.scrollHeight;
-        }
-        if (ev.token !== undefined) {
-          const b = ensureBubble(ev.bot_id, ev.bot);
-          b.text += ev.token;
-          b.bubble.innerHTML = renderChatMessage(b.text);
-          logEl.scrollTop = logEl.scrollHeight;
-          if (ev.source) source = ev.source;
-        }
-        if (ev.end) {
-          const b = ensureBubble(ev.bot_id, ev.bot);
-          if (ev.source) source = ev.source;
-          b.meta.innerHTML = `${esc(b.label)} · Just now · ${esc(ev.source || source)}${actionButtonsHtml()}`;
-          if (autoTtsEnabled && b.text) spokenQueue.push(isGroup ? `${b.label} says: ${b.text}` : b.text);
-        }
-      };
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+        bumpIdle();
         buf += decoder.decode(value, { stream: true });
         let idx;
         while ((idx = buf.indexOf('\n\n')) >= 0) {
@@ -2650,44 +2847,42 @@ async function sendChat() {
           try { handle(JSON.parse(payload)); } catch (_) {}
         }
       }
-      // Single-bot streams have no explicit "end" event: finalise the bubble.
-      if (!isGroup) {
-        const b = bubbles['_single'];
-        if (b) {
-          b.meta.innerHTML = `${esc(b.label)} · Just now · ${esc(source)}${actionButtonsHtml()}`;
-          if (autoTtsEnabled && b.text) spokenQueue.push(b.text);
-        }
-      }
-      finish();
-      document.getElementById('chatStatus').innerHTML = renderTick('Replied via ' + source);
+      Object.values(bubbles).forEach(b => finishBubble(b));
+      status.innerHTML = source === 'engine_down' ? esc('The AI engine is being restarted.') : renderTick('Replied via ' + source);
       spokenQueue.forEach(t => speakText(t, true));
-      loadBots();
-      return;
-    }
-
-    // Non-streamed JSON (offline fallback or error)
-    const data = await resp.json();
-    finish();
-    if (resp.ok) {
-      const src = isGroup ? ((data.replies && data.replies[0] && data.replies[0].source) || 'local') : (data.reply_source || 'local');
-      document.getElementById('chatStatus').innerHTML = renderTick('Replied via ' + src);
-      if (autoTtsEnabled) {
-        if (isGroup) (data.replies || []).forEach(r => speakText(`${r.sender} says: ${r.text}`, true));
-        else if (data.reply) speakText(data.reply);
-      }
-      loadBots();
     } else {
-      let errTxt = 'Problem sending message';
-      try {
-        const data = await resp.json();
-        errTxt = (data && data.error) || errTxt;
-      } catch (_) {}
-      document.getElementById('chatStatus').textContent = errTxt;
+      let data = {};
+      try { data = await resp.json(); } catch (_) {}
+      if (resp.ok && data.reply) {
+        const b = ensureBubble(null, activeBotName);
+        b.text = data.reply;
+        finishBubble(b, data.reply_source);
+      } else {
+        status.textContent = resp.status === 403 ? 'The studio restarted; this page is reloading…' : ((data && data.error) || 'Problem sending the message.');
+      }
     }
   } catch (err) {
-    document.getElementById('chatStatus').textContent = 'Connection problem: is the studio server running?';
+    const why = ctrl.signal.aborted ? ctrl.signal.reason : null;
+    const note = why === 'stopped' ? '*(stopped)*'
+      : why === 'timeout' ? '*(no reply for 2½ minutes: the AI engine may be stuck. Use **Restart AI** above, then ask again.)*'
+      : null;
+    if (note) {
+      const live = Object.values(bubbles).filter(b => !b.done);
+      if (live.length) live.forEach(b => finishBubble(b, 'stopped', note));
+      else status.textContent = note.replace(/[*()]/g, '');
+    } else {
+      status.textContent = 'The studio is not answering. It restarts itself within 5 minutes; this page reloads when it is back.';
+      if (window.studioWatch) window.studioWatch.check();
+    }
   } finally {
-    finish();
+    clearTimeout(idleTimer);
+    const tb = document.getElementById('typingBubble');
+    if (tb) tb.remove();
+    chatBusy = false;
+    chatAbort = null;
+    setSendMode(false);
+    refreshLlmBadge();
+    if (!ctrl.signal.aborted) loadBots();      // after Stop, keep what's on screen (the server saves it a moment later)
     if (currentView === 'core') loadCore();
   }
 }
@@ -3149,6 +3344,7 @@ function coreTalkTo(name) {
   loadCore();
   setInterval(() => { if (currentView === 'core' && !document.hidden) loadCore(); }, 30000);
   refreshLlmBadge();
+  setInterval(() => { if (!document.hidden) refreshLlmBadge(); }, 20000);
   loadRules();
   refreshTtsStatus();
   refreshDiffusionStatus();
