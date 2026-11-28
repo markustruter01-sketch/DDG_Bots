@@ -419,6 +419,7 @@ def start(sysm: System = System, browser: bool = False) -> bool:
 
 
 def check(sysm: System = System) -> Dict[str, str]:
+    remember_model_folder(sysm)               # cheap (one registry read); fixes the tray app's Ollama for next time
     out = {"ai": check_ai(sysm)}
     health = studio_health(sysm)
     on_disk = sysm.code_version()
