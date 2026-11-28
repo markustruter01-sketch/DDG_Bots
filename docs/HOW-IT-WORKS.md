@@ -108,4 +108,4 @@ questions about the bot, quoting only the live numbers.
 
 ## Backups
 - `F:\Backups\DDG_Local_Bot_Studio_2026-11-26_before_Claude.zip` — the studio as it was before 26 Nov's work.
-- The full code history is in Claude's copy, ready for GitHub once the private repo `DDG_BotStudio` exists.
+- The full code history is on GitHub: `markustruter01-sketch/DDG_Bots` (public; personal words and keys are kept out).
