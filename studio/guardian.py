@@ -150,6 +150,7 @@ class System:
     run = staticmethod(run)
     spawn = staticmethod(spawn)
     sleep = staticmethod(time.sleep)
+    code_version = staticmethod(lambda: code_version())   # defined further down
     now = staticmethod(lambda: datetime.now(AEST))
 
     @staticmethod
@@ -328,9 +329,23 @@ def check_ai(sysm: System = System) -> str:
 
 
 # ── the dashboard and the crypto bot ───────────────────────────────────────────────────────────────────────────────
-def studio_ok(sysm: System = System) -> bool:
+def studio_health(sysm: System = System) -> Optional[Dict[str, Any]]:
     code, data = sysm.http(studio_url() + "/api/health", None, 8)
-    return code == 200 and isinstance(data, dict) and bool(data.get("ok"))
+    return data if code == 200 and isinstance(data, dict) and data.get("ok") else None
+
+
+def studio_ok(sysm: System = System) -> bool:
+    return studio_health(sysm) is not None
+
+
+def code_version() -> Optional[str]:
+    """The STUDIO_VERSION in dashboard/server.py on disk (what a fresh start would run)."""
+    import re
+    try:
+        m = re.search(r'^STUDIO_VERSION = "([^"]+)"', (ROOT / "dashboard" / "server.py").read_text(encoding="utf-8"), re.M)
+        return m.group(1) if m else None
+    except OSError:
+        return None
 
 
 def port_owner_pids(port: int, sysm: System = System) -> List[str]:
@@ -405,7 +420,12 @@ def start(sysm: System = System, browser: bool = False) -> bool:
 
 def check(sysm: System = System) -> Dict[str, str]:
     out = {"ai": check_ai(sysm)}
-    if studio_ok(sysm):
+    health = studio_health(sysm)
+    on_disk = sysm.code_version()
+    if health and on_disk and health.get("version") and health["version"] != on_disk:
+        log(f"dashboard is running {health['version']} but {on_disk} is installed - restarting it into the new version")
+        out["studio"] = "updated" if start_studio(sysm) else "failed (see logs/server.log)"
+    elif health:
         out["studio"] = "ok"
     else:
         log("dashboard not answering - restarting it")

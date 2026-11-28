@@ -20,6 +20,8 @@ class FakePC(G.System):
         self.ollama_up, self.model_present, self.probe_ok = ollama_up, model_present, probe_ok
         self.studio_up, self.age, self.last_ai, self.busy = studio_up, crypto_age, last_ai, gaming
         self.ran, self.spawned, self.probes = [], [], 0
+        self.running_version, self.disk_version = "v1", "v1"
+        self.code_version = lambda: self.disk_version
         self.http = self._http
         self.run = self._run
         self.spawn = self._spawn
@@ -39,7 +41,7 @@ class FakePC(G.System):
             self.probes += 1
             return (200, {"response": "OK"}) if self.probe_ok else (None, None)
         if url.endswith("/api/health"):
-            return (200, {"ok": True}) if self.studio_up else (None, None)
+            return (200, {"ok": True, "version": self.running_version}) if self.studio_up else (None, None)
         return None, None
 
     def _run(self, cmd, timeout=30):
@@ -54,6 +56,7 @@ class FakePC(G.System):
             self.probe_ok = True
         if log_name == "server.log":
             self.studio_up = True
+            self.running_version = self.disk_version
         return True
 
 
@@ -127,6 +130,13 @@ class TestGuardian(unittest.TestCase):
         pc = FakePC()
         self.assertTrue(G.start(pc))
         self.assertEqual(pc.spawned, [])
+
+    def test_new_version_on_disk_restarts_the_dashboard(self) -> None:
+        pc = FakePC(last_ai=datetime(2026, 11, 28, 11, 55, tzinfo=G.AEST))
+        pc.disk_version = "v2"
+        self.assertEqual(G.check(pc)["studio"], "updated")
+        self.assertEqual([s[1] for s in pc.spawned], ["server.log"])
+        self.assertEqual(G.check(pc)["studio"], "ok")                  # now up to date: left alone
 
     def test_model_name_match(self) -> None:
         self.assertTrue(G.has_model(["qwen3:8b", "qwen3-vl:4b"], "qwen3:8b"))
